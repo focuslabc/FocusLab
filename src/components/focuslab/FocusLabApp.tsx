@@ -6,6 +6,7 @@ import { CustomRadarChart } from './CustomRadarChart';
 import { JourneyView } from './JourneyView';
 import { useAuth } from '@/hooks/useAuth';
 import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries } from '@/hooks/useSupabaseData';
+import focusLabLogo from '@/assets/focuslab-logo.png';
 import {
   LayoutDashboard, Atom, Activity, Target, BarChart3, Settings, Check, Play, ArrowRight,
   Brain, Dumbbell, BookOpen, Plus, Lock, ChevronLeft, Flame, Droplets, Smartphone, Clock,
