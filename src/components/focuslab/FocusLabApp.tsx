@@ -71,7 +71,7 @@ const AuthScreen = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-black via-zinc-950 to-red-950 opacity-90" />
       <div className="flex-1 flex flex-col items-center justify-center text-center px-4 relative z-10">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-          <div className="w-16 h-16 bg-red-900 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-red-900/40"><Atom className="w-8 h-8 text-white" /></div>
+          <img src={focusLabLogo} alt="FocusLab" className="w-16 h-16 mx-auto mb-8" />
           <h2 className="text-red-600 uppercase tracking-[0.4em] text-sm mb-6 font-bold">Focus Lab</h2>
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-8 leading-tight max-w-4xl tracking-tight">Disciplina é <span className="text-zinc-500">Liberdade</span></h1>
           <p className="text-zinc-400 text-lg max-w-xl mx-auto mb-12 font-medium">Gerencie seus projetos, monitore sua consistência e execute com precisão cirúrgica.</p>
