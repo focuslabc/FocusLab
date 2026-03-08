@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SettingsView } from './SettingsView';
-import { RedViewReal, type RedTask } from './RedViewReal';
+import { RedViewReal } from './RedViewReal';
 import { CustomRadarChart } from './CustomRadarChart';
 import { JourneyView } from './JourneyView';
+import { useAuth } from '@/hooks/useAuth';
+import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries } from '@/hooks/useSupabaseData';
 import {
   LayoutDashboard, Atom, Activity, Target, BarChart3, Settings, Check, Play, ArrowRight,
   Brain, Dumbbell, BookOpen, Plus, Lock, ChevronLeft, Flame, Droplets, Smartphone, Clock,
-  X, Zap, Users, Map, Shield, Video, FileText, Mic, Calendar, Trash2, Save, LogOut, Wind
+  X, Zap, Users, Map, Shield, Video, FileText, Mic, Calendar, Trash2, Save, LogOut, Wind, Loader2
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -17,9 +19,6 @@ import { toast, Toaster } from 'sonner';
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
 type ViewState = 'command_center' | 'red' | 'tasks' | 'challenges' | 'weekly_goals' | 'laboratory' | 'journal' | 'library' | 'journey' | 'coworking' | 'settings' | 'decoupling';
-
-interface Project { id: string; title: string; content: string; lastEdited: string; }
-interface Commitment { id: string; text: string; category: string; videoTitle: string; registeredAt: string; deadline: string; }
 
 const SYSTEM_CHALLENGES = [
   { id: 1, title: 'Jejum de Dopamina', icon: Brain, duration: '7 dias', desc: 'Reduza estímulos artificiais para recuperar a sensibilidade dos receptores.' },
@@ -40,26 +39,29 @@ const VIDEO_CATEGORIES = [
   { id: 'purpose', title: 'Propósito e Direção', icon: Map, desc: 'Alinhamento estratégico de vida.' },
 ];
 
-const BOOK_CATEGORIES = [
-  { id: 'productivity', title: 'Produtividade Radical', icon: Target, desc: 'Livros sobre execução, foco e alta performance.' },
-  { id: 'psychology', title: 'Psicologia Comportamental', icon: Brain, desc: 'Compreensão profunda de hábitos e padrões mentais.' },
-  { id: 'philosophy', title: 'Filosofia Prática', icon: BookOpen, desc: 'Estoicismo, existencialismo e sabedoria aplicada.' },
-  { id: 'neuroscience', title: 'Neurociência Aplicada', icon: Zap, desc: 'Como o cérebro funciona e como otimizá-lo.' },
-];
-
 // --- Auth Screen ---
-const AuthScreen = ({ onLogin }: { onLogin: () => void }) => {
+const AuthScreen = () => {
+  const { signIn, signUp } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success(mode === 'login' ? 'Acesso autorizado. Bem-vindo ao Núcleo.' : 'Conta criada! Bem-vindo.');
-    setShowModal(false);
-    onLogin();
+    setIsLoading(true);
+    if (mode === 'login') {
+      const { error } = await signIn(email, password);
+      if (error) toast.error(error.message || 'Erro ao entrar');
+      else toast.success('Acesso autorizado. Bem-vindo ao Núcleo.');
+    } else {
+      const { error } = await signUp(email, password, name);
+      if (error) toast.error(error.message || 'Erro ao cadastrar');
+      else toast.success('Conta criada! Verifique seu e-mail para confirmar.');
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -94,8 +96,11 @@ const AuthScreen = ({ onLogin }: { onLogin: () => void }) => {
                 <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">E-mail</label>
                   <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="exemplo@email.com" /></div>
                 <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Senha</label>
-                  <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="••••••••" /></div>
-                <button type="submit" className="w-full py-4 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-red-900/20 mt-4">{mode === 'login' ? 'AUTENTICAR' : 'CADASTRAR'}</button>
+                  <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="••••••••" /></div>
+                <button type="submit" disabled={isLoading} className="w-full py-4 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-red-900/20 mt-4 disabled:opacity-50 flex items-center justify-center gap-2">
+                  {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+                  {mode === 'login' ? 'AUTENTICAR' : 'CADASTRAR'}
+                </button>
               </form>
               <div className="mt-6 pt-6 border-t border-white/5 text-center">
                 <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setName(''); }} className="text-zinc-400 hover:text-red-500 text-sm font-semibold transition-colors">
@@ -214,34 +219,36 @@ const DecouplingView = ({ setView }: { setView: (v: ViewState) => void }) => {
   );
 };
 
-const TasksView = () => {
-  const [localTasks, setLocalTasks] = useState<Array<{ id: number; text: string; completed: boolean }>>([]);
+const TasksView = ({ userId }: { userId: string }) => {
+  const { tasks, loading, addTask, toggleTask, updateTaskText, removeCompleted } = useGeneralTasks(userId);
+  
+  if (loading) return <div className="h-full flex items-center justify-center"><Loader2 className="w-12 h-12 text-red-600 animate-spin" /></div>;
+
   return (
     <div className="h-full w-full p-8 lg:p-12 overflow-y-auto">
       <h1 className="text-4xl font-bold text-white mb-2">Tarefas Gerais</h1>
       <p className="text-zinc-500 mb-12 font-medium max-w-2xl">Ambiente de alta performance. Execute uma micro-operação de cada vez.</p>
       <div className="max-w-3xl space-y-4">
-        {localTasks.length === 0 ? (
+        {tasks.length === 0 ? (
           <div className="py-16 text-center"><Check className="w-16 h-16 text-zinc-700 mx-auto mb-4" /><p className="text-zinc-500 font-medium mb-2">Nenhuma tarefa criada ainda</p></div>
         ) : (
-          <AnimatePresence>{localTasks.map((task) => (
+          <AnimatePresence>{tasks.map((task) => (
             <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
               className={cn("w-full p-6 border rounded-2xl flex items-center gap-6 transition-all group backdrop-blur-sm", task.completed ? "border-red-900/30 bg-red-900/10" : "border-white/5 bg-black/20 hover:border-white/10")}>
-              <div onClick={() => setLocalTasks(localTasks.map(t => t.id === task.id ? { ...t, completed: !t.completed } : t))}
+              <div onClick={() => toggleTask(task.id)}
                 className={cn("w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer shrink-0", task.completed ? "border-red-700 bg-red-700" : "border-zinc-700 group-hover:border-zinc-500")}>
                 {task.completed && <Check className="w-4 h-4 text-white" />}
               </div>
-              <input value={task.text} onChange={(e) => setLocalTasks(localTasks.map(t => t.id === task.id ? { ...t, text: e.target.value } : t))}
+              <input value={task.text} onChange={(e) => updateTaskText(task.id, e.target.value)}
                 className={cn("text-lg font-medium transition-colors bg-transparent border-none focus:outline-none w-full", task.completed ? "text-zinc-600 line-through" : "text-zinc-200")} />
             </motion.div>
           ))}</AnimatePresence>
         )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
-          <button onClick={() => setLocalTasks([...localTasks, { id: Date.now(), text: 'Nova Tarefa', completed: false }])}
+          <button onClick={() => addTask('Nova Tarefa')}
             className="py-4 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-500 font-bold uppercase tracking-widest hover:border-zinc-600 hover:text-zinc-300 transition-all bg-black/20 flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> Adicionar</button>
-          <button onClick={() => setLocalTasks(localTasks.filter(t => !t.completed))} disabled={!localTasks.some(t => t.completed)}
+          <button onClick={removeCompleted} disabled={!tasks.some(t => t.completed)}
             className="py-4 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-500 font-bold uppercase tracking-widest hover:border-red-900/50 hover:text-red-600 transition-all bg-black/20 flex items-center justify-center gap-2 disabled:opacity-50"><Trash2 className="w-4 h-4" /> Remover</button>
-          <button className="py-4 border-2 border-dashed border-zinc-800 rounded-2xl text-zinc-500 font-bold uppercase tracking-widest hover:border-emerald-900/50 hover:text-emerald-500 transition-all bg-black/20 flex items-center justify-center gap-2"><Save className="w-4 h-4" /> Salvar</button>
         </div>
       </div>
     </div>
@@ -254,55 +261,61 @@ const CoworkingView = () => (
   </div>
 );
 
+const JournalView = ({ userId }: { userId: string }) => {
+  const { entries, saveEntry } = useJournalEntries(userId);
+  const questions = [
+    { q: 'O que impediu você de completar 100% da R.E.D. hoje?', ph: 'Identifique gatilhos, padrões ou situações específicas...' },
+    { q: 'Qual foi o momento exato em que você desviou do protocolo?', ph: 'Hora, contexto, estado emocional...' },
+    { q: 'Que sistema ou barreira pode prevenir isso amanhã?', ph: 'Seja específico e actionável...' },
+    { q: 'Reflexão livre: O que você aprendeu sobre si mesmo hoje?', ph: 'Escreva livremente sem julgamento...' },
+  ];
+
+  return (
+    <div className="h-full w-full p-8 lg:p-12 overflow-y-auto">
+      <h1 className="text-3xl font-bold text-white mb-2 tracking-tight flex items-center gap-3"><FileText className="w-8 h-8 text-red-500" /> Diário de Reconfiguração</h1>
+      <p className="text-zinc-500 font-medium mb-12">Reflexão guiada para identificar padrões e criar intervenções.</p>
+      <div className="max-w-3xl mx-auto space-y-6">
+        {questions.map((item, i) => (
+          <div key={i} className="bg-black/20 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+            <label className="block text-white font-bold mb-3 text-sm">{item.q}</label>
+            <textarea
+              value={entries[i] || ''}
+              onChange={(e) => saveEntry(i, e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 min-h-[100px] resize-y font-medium leading-relaxed"
+              placeholder={item.ph}
+            />
+          </div>
+        ))}
+        <button onClick={() => toast.success('Padrões analisados!')} className="w-full py-4 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"><Brain className="w-5 h-5" /> ANALISAR PADRÕES</button>
+      </div>
+    </div>
+  );
+};
+
 // --- Main App ---
 export default function FocusLabApp() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, loading: authLoading, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>('command_center');
-  const [focusObjective, setFocusObjective] = useState('Lançar MVP do Focus Lab');
-  const [focusTargetDate] = useState('2026-06-30');
 
-  // Local RED tasks state (mock)
-  const [redTasks, setRedTasks] = useState<RedTask[]>([
-    { id: '1', user_id: 'local', text: 'Leitura 20 páginas', category: 'Mind', completed: false, position: 0, created_at: '', updated_at: '' },
-    { id: '2', user_id: 'local', text: 'Treino 45 min', category: 'Bio', completed: false, position: 1, created_at: '', updated_at: '' },
-    { id: '3', user_id: 'local', text: 'Deep Work 90 min', category: 'Work', completed: true, completed_at: new Date().toISOString(), position: 2, created_at: '', updated_at: '' },
-    { id: '4', user_id: 'local', text: 'Meditação 10 min', category: 'Outro', completed: false, position: 3, created_at: '', updated_at: '' },
-  ]);
+  const userId = user?.id;
+  const { tasks: redTasks, loading: redLoading, addTask, toggleTask, removeTask, updateTask } = useRedTasks(userId);
+  const { objective, loading: objLoading, updateObjective, createObjective } = useObjective(userId);
+  const { progress: challengeProgress, startChallenge } = useChallengeProgress(userId);
 
-  const [objective, setObjective] = useState({ title: 'Lançar MVP do Focus Lab', target_date: '2026-06-30', end_time: '23:59', quarter: 'Q1 2026' });
-
-  const addTask = useCallback(async (t: Omit<RedTask, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-    setRedTasks(prev => [...prev, { ...t, id: Date.now().toString(), user_id: 'local', created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as RedTask]);
-    toast.success('Tarefa RED adicionada');
-  }, []);
-
-  const toggleTask = useCallback(async (id: string) => {
-    setRedTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed, completed_at: !t.completed ? new Date().toISOString() : undefined } : t));
-  }, []);
-
-  const removeTask = useCallback(async (id: string) => {
-    setRedTasks(prev => prev.filter(t => t.id !== id));
-    toast.success('Tarefa removida');
-  }, []);
-
-  const updateTask = useCallback(async (id: string, updates: Partial<RedTask>) => {
-    setRedTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-  }, []);
-
-  const updateObjective = useCallback(async (u: any) => {
-    setObjective(prev => ({ ...prev, ...u }));
-    toast.success('Objeto de foco atualizado');
-  }, []);
-
-  const createObjective = useCallback(async (o: any) => {
-    setObjective(o);
-  }, []);
-
-  if (!isLoggedIn) {
-    return <><Toaster position="top-center" theme="dark" /><AuthScreen onLogin={() => setIsLoggedIn(true)} /></>;
+  if (authLoading) {
+    return (
+      <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center">
+        <Toaster position="top-center" theme="dark" />
+        <div className="text-center"><Loader2 className="w-16 h-16 text-red-600 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Carregando sistema...</p></div>
+      </div>
+    );
   }
 
-  // Command Center
+  if (!user) {
+    return <><Toaster position="top-center" theme="dark" /><AuthScreen /></>;
+  }
+
+  // Command Center data
   const lifeAreasData = (() => {
     const scores = { Mente: 70, Corpo: 70, Carreira: 60, Espírito: 50, Social: 50, Finanças: 50 };
     redTasks.forEach(task => {
@@ -322,32 +335,47 @@ export default function FocusLabApp() {
     ];
   })();
 
+  const focusObjective = objective?.title || 'Defina seu objeto de foco';
+  const focusTargetDate = objective?.target_date || '2026-06-30';
   const daysRemaining = Math.max(0, Math.ceil((new Date(focusTargetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+
+  const handleLogout = async () => {
+    await signOut();
+    toast.success('Desconectado com sucesso.');
+  };
 
   const renderView = () => {
     switch (currentView) {
-      case 'red': return <RedViewReal tasks={redTasks} tasksLoading={false} addTask={addTask} toggleTask={toggleTask} removeTask={removeTask} updateTask={updateTask} objective={objective} objectiveLoading={false} updateObjective={updateObjective} createObjective={createObjective} userId="local" />;
-      case 'settings': return <SettingsView />;
+      case 'red': return <RedViewReal tasks={redTasks} tasksLoading={redLoading} addTask={addTask} toggleTask={toggleTask} removeTask={removeTask} updateTask={updateTask} objective={objective} objectiveLoading={objLoading} updateObjective={updateObjective} createObjective={createObjective} userId={userId || null} />;
+      case 'settings': return <SettingsView userId={userId} />;
       case 'journey': return <JourneyView />;
       case 'decoupling': return <DecouplingView setView={setCurrentView} />;
-      case 'tasks': return <TasksView />;
+      case 'tasks': return <TasksView userId={userId!} />;
       case 'coworking': return <CoworkingView />;
+      case 'journal': return <JournalView userId={userId!} />;
       case 'challenges': return (
         <div className="p-8 lg:p-12 overflow-y-auto h-full">
           <h1 className="text-4xl font-bold text-white mb-2">Desafios</h1><p className="text-zinc-500 font-medium mb-12">Protocolos de otimização comportamental.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {SYSTEM_CHALLENGES.map((c) => (
-              <div key={c.id} className="bg-black/20 border border-white/5 hover:border-red-900/30 rounded-3xl p-8 transition-all group relative overflow-hidden backdrop-blur-sm">
-                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><c.icon className="w-32 h-32 text-red-600" /></div>
-                <div className="relative z-10">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 text-red-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-black/50"><c.icon className="w-6 h-6" /></div>
-                  <h3 className="text-xl font-bold text-white mb-2">{c.title}</h3>
-                  <div className="inline-block px-3 py-1 text-xs font-bold rounded-full mb-4 border bg-red-900/20 text-red-400 border-red-900/30">{c.duration}</div>
-                  <p className="text-zinc-400 text-sm leading-relaxed mb-8 h-10 line-clamp-2">{c.desc}</p>
-                  <button className="w-full py-3 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2 bg-zinc-800 text-white hover:bg-red-900"><Play className="w-4 h-4" /> INICIAR PROTOCOLO</button>
+            {SYSTEM_CHALLENGES.map((c) => {
+              const active = challengeProgress.find(p => p.challenge_id === c.id && p.is_active);
+              return (
+                <div key={c.id} className="bg-black/20 border border-white/5 hover:border-red-900/30 rounded-3xl p-8 transition-all group relative overflow-hidden backdrop-blur-sm">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><c.icon className="w-32 h-32 text-red-600" /></div>
+                  <div className="relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 text-red-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-black/50"><c.icon className="w-6 h-6" /></div>
+                    <h3 className="text-xl font-bold text-white mb-2">{c.title}</h3>
+                    <div className="inline-block px-3 py-1 text-xs font-bold rounded-full mb-4 border bg-red-900/20 text-red-400 border-red-900/30">{c.duration}</div>
+                    <p className="text-zinc-400 text-sm leading-relaxed mb-8 h-10 line-clamp-2">{c.desc}</p>
+                    <button onClick={() => !active && startChallenge(c.id)}
+                      className={cn("w-full py-3 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2",
+                        active ? "bg-emerald-900/30 text-emerald-400 border border-emerald-600/30 cursor-default" : "bg-zinc-800 text-white hover:bg-red-900")}>
+                      {active ? <><Check className="w-4 h-4" /> EM ANDAMENTO</> : <><Play className="w-4 h-4" /> INICIAR PROTOCOLO</>}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       );
@@ -390,26 +418,6 @@ export default function FocusLabApp() {
                 <h3 className="text-lg font-bold text-white mb-2">{cat.title}</h3><p className="text-zinc-500 text-sm leading-relaxed">{cat.desc}</p>
               </div>
             ))}
-          </div>
-        </div>
-      );
-      case 'journal': return (
-        <div className="h-full w-full p-8 lg:p-12 overflow-y-auto">
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight flex items-center gap-3"><FileText className="w-8 h-8 text-red-500" /> Diário de Reconfiguração</h1>
-          <p className="text-zinc-500 font-medium mb-12">Reflexão guiada para identificar padrões e criar intervenções.</p>
-          <div className="max-w-3xl mx-auto space-y-6">
-            {[
-              { q: 'O que impediu você de completar 100% da R.E.D. hoje?', ph: 'Identifique gatilhos, padrões ou situações específicas...' },
-              { q: 'Qual foi o momento exato em que você desviou do protocolo?', ph: 'Hora, contexto, estado emocional...' },
-              { q: 'Que sistema ou barreira pode prevenir isso amanhã?', ph: 'Seja específico e actionável...' },
-              { q: 'Reflexão livre: O que você aprendeu sobre si mesmo hoje?', ph: 'Escreva livremente sem julgamento...' },
-            ].map((item, i) => (
-              <div key={i} className="bg-black/20 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                <label className="block text-white font-bold mb-3 text-sm">{item.q}</label>
-                <textarea className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 min-h-[100px] resize-y font-medium leading-relaxed" placeholder={item.ph} />
-              </div>
-            ))}
-            <button className="w-full py-4 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"><Brain className="w-5 h-5" /> ANALISAR PADRÕES</button>
           </div>
         </div>
       );
@@ -483,7 +491,7 @@ export default function FocusLabApp() {
   return (
     <div className="h-screen w-screen bg-zinc-950 text-white flex overflow-hidden">
       <Toaster position="top-center" theme="dark" />
-      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={() => { setIsLoggedIn(false); toast.success('Desconectado com sucesso.'); }} />
+      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} />
       <main className="flex-1 overflow-hidden">{renderView()}</main>
     </div>
   );

@@ -1,9 +1,25 @@
 import React, { useState } from 'react';
 import { User, Bell, Shield, Moon, Monitor, Globe } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useProfile } from '@/hooks/useSupabaseData';
+import { toast } from 'sonner';
 
-export function SettingsView() {
+export function SettingsView({ userId }: { userId?: string }) {
   const [activeTab, setActiveTab] = useState<'profile' | 'app'>('profile');
+  const { profile, loading, updateProfile } = useProfile(userId);
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
+  const [initialized, setInitialized] = useState(false);
+
+  if (profile && !initialized) {
+    setDisplayName(profile.display_name || '');
+    setBio(profile.bio || '');
+    setInitialized(true);
+  }
+
+  const handleSaveProfile = async () => {
+    await updateProfile({ display_name: displayName, bio });
+  };
 
   return (
     <div className="h-full w-full p-6 lg:p-12 overflow-y-auto">
@@ -36,26 +52,14 @@ export function SettingsView() {
                     <div className="w-24 h-24 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center text-zinc-500 hover:border-red-500 hover:text-red-500 transition-colors cursor-pointer">
                       <span className="text-xs font-bold uppercase">Foto</span>
                     </div>
-                    <div><h3 className="text-white font-bold text-lg">Operador Focus</h3><p className="text-zinc-500 text-sm">Nível 1 • Iniciante</p></div>
+                    <div><h3 className="text-white font-bold text-lg">{profile?.display_name || 'Operador'}</h3><p className="text-zinc-500 text-sm">Focus Lab</p></div>
                   </div>
                   <div className="space-y-4">
                     <div><label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Nome de Exibição</label>
-                      <input type="text" defaultValue="Operador" className="w-full bg-black/40 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors" /></div>
+                      <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full bg-black/40 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors" /></div>
                     <div><label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Bio / Mantra</label>
-                      <textarea defaultValue="Foco absoluto. Execução implacável." className="w-full bg-black/40 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors h-24 resize-none" /></div>
-                  </div>
-                </div>
-                <div className="bg-zinc-900/30 border border-zinc-800 rounded-3xl p-8">
-                  <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><Shield className="w-5 h-5 text-red-500" /> Segurança</h2>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-zinc-800">
-                      <div><div className="text-white font-medium mb-1">E-mail</div><div className="text-zinc-500 text-sm">operador@focuslab.com</div></div>
-                      <button className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded-lg transition-colors">Alterar</button>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-zinc-800">
-                      <div><div className="text-white font-medium mb-1">Senha</div><div className="text-zinc-500 text-sm">••••••••••••</div></div>
-                      <button className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded-lg transition-colors">Alterar</button>
-                    </div>
+                      <textarea value={bio} onChange={(e) => setBio(e.target.value)} className="w-full bg-black/40 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors h-24 resize-none" /></div>
+                    <button onClick={handleSaveProfile} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors">Salvar Perfil</button>
                   </div>
                 </div>
               </div>
