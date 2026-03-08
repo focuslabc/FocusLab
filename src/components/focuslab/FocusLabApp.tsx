@@ -317,7 +317,7 @@ export default function FocusLabApp() {
 
   // Command Center data
   const lifeAreasData = (() => {
-    const scores = { Mente: 70, Corpo: 70, Carreira: 60, Espírito: 50, Social: 50, Finanças: 50 };
+    const scores = { Mente: 0, Corpo: 0, Carreira: 0, Espírito: 0, Social: 0, Finanças: 0 };
     redTasks.forEach(task => {
       if (!task.completed) return;
       if (task.category === 'Mind') scores.Mente += 20;
@@ -335,9 +335,9 @@ export default function FocusLabApp() {
     ];
   })();
 
-  const focusObjective = objective?.title || 'Defina seu objeto de foco';
-  const focusTargetDate = objective?.target_date || '2026-06-30';
-  const daysRemaining = Math.max(0, Math.ceil((new Date(focusTargetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+  const focusObjective = objective?.title || 'Defina seu objeto de foco na aba R.E.D.';
+  const focusTargetDate = objective?.target_date;
+  const daysRemaining = focusTargetDate ? Math.max(0, Math.ceil((new Date(focusTargetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : null;
 
   const handleLogout = async () => {
     await signOut();
@@ -385,14 +385,10 @@ export default function FocusLabApp() {
             <h1 className="text-4xl font-bold text-white mb-2">Metas Semanais</h1><p className="text-zinc-500 font-medium mb-12">Análise de consistência e aderência ao plano.</p>
             <div className="mb-12 bg-black/20 rounded-3xl p-8 border border-white/5 backdrop-blur-sm">
               <h3 className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-8">Performance Semanal</h3>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={[{ name: 'Seg', uv: 82 }, { name: 'Ter', uv: 65 }, { name: 'Qua', uv: 90 }, { name: 'Qui', uv: 85 }, { name: 'Sex', uv: 78 }, { name: 'Sab', uv: 92 }, { name: 'Hoje', uv: 75 }]}>
-                    <defs><linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#b91c1c" stopOpacity={0.3}/><stop offset="95%" stopColor="#b91c1c" stopOpacity={0}/></linearGradient></defs>
-                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '8px', color: '#fff' }} />
-                    <Area type="monotone" dataKey="uv" stroke="#b91c1c" strokeWidth={3} fillOpacity={1} fill="url(#colorUv)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="py-16 text-center">
+                <BarChart3 className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+                <p className="text-zinc-500 font-medium mb-2">Nenhum dado de performance ainda</p>
+                <p className="text-zinc-600 text-sm">Complete tarefas na R.E.D. para gerar dados de performance.</p>
               </div>
             </div>
           </div>
@@ -428,8 +424,8 @@ export default function FocusLabApp() {
               <div><h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Centro de Comando</h1><p className="text-zinc-500 font-medium">Sua jornada de evolução continua.</p></div>
               <div className="flex items-center gap-4 bg-black/40 p-3 rounded-xl border border-zinc-800 backdrop-blur-sm relative z-20">
                 <div className="text-right hidden sm:block">
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Energia Disciplinar</span>
-                  <div className="text-red-600 font-bold">Estável (72%)</div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Tarefas RED</span>
+                  <div className="text-red-600 font-bold">{redTasks.filter(t => t.completed).length}/{redTasks.length} concluídas</div>
                 </div>
                 <Flame className="w-6 h-6 text-red-600 animate-pulse drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
               </div>
@@ -442,40 +438,52 @@ export default function FocusLabApp() {
                   <Target className="w-16 h-16 text-red-500" />
                 </div>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="px-3 py-1 bg-red-900/20 border border-red-900/50 rounded-full text-red-400 text-[10px] font-bold uppercase tracking-widest">Objeto de Foco (Q1 2026)</div>
-                  <div className="text-zinc-500 text-xs font-mono">Faltam {daysRemaining} dias</div>
+                  <div className="px-3 py-1 bg-red-900/20 border border-red-900/50 rounded-full text-red-400 text-[10px] font-bold uppercase tracking-widest">Objeto de Foco</div>
+                  {daysRemaining !== null && <div className="text-zinc-500 text-xs font-mono">Faltam {daysRemaining} dias</div>}
                 </div>
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-6 max-w-2xl px-4 drop-shadow-md">{focusObjective}</h2>
               </motion.div>
             </div>
             {/* Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              <div className="bg-zinc-900/40 border border-red-900/20 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('laboratory')}>
-                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-red-900/20 rounded-lg text-red-500"><Atom className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Laboratório</span></div>
-                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">Protocolo de 3 Dias: Detox Digital</h3><p className="text-zinc-500 text-sm">Alinhado com seu foco atual.</p>
+              <div className="bg-zinc-900/40 border border-red-900/20 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('red')}>
+                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-red-900/20 rounded-lg text-red-500"><Target className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">R.E.D.</span></div>
+                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">{redTasks.length > 0 ? `${redTasks.filter(t => t.completed).length}/${redTasks.length} tarefas hoje` : 'Nenhuma tarefa ainda'}</h3>
+                <p className="text-zinc-500 text-sm">{redTasks.length > 0 ? 'Continue executando.' : 'Configure sua rotina essencial.'}</p>
               </div>
-              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('library')}>
-                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300"><Video className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Biblioteca</span></div>
-                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">A Química do Foco</h3><p className="text-zinc-500 text-sm">Conteúdo curto. Registre sua ação até 48h.</p>
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('challenges')}>
+                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300"><Flame className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Desafios</span></div>
+                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">{challengeProgress.filter(p => p.is_active).length > 0 ? `${challengeProgress.filter(p => p.is_active).length} desafio(s) ativo(s)` : 'Nenhum desafio ativo'}</h3>
+                <p className="text-zinc-500 text-sm">{challengeProgress.length > 0 ? 'Continue evoluindo.' : 'Inicie seu primeiro desafio.'}</p>
               </div>
-              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group">
-                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300"><Users className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Aliança</span></div>
-                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">Esquadrão Omega</h3>
-                <div className="flex gap-2"><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /><div className="w-2 h-2 rounded-full bg-zinc-700" /></div>
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('tasks')}>
+                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300"><Check className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Tarefas</span></div>
+                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">Tarefas Gerais</h3>
+                <p className="text-zinc-500 text-sm">Organize suas micro-operações.</p>
               </div>
               <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-blue-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('decoupling')}>
                 <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300 group-hover:text-blue-400"><Wind className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Descompressão</span></div>
-                <h3 className="text-white font-bold mb-2 group-hover:text-blue-400 transition-colors">Estação de Desacoplamento</h3><p className="text-zinc-500 text-sm">Diminua o ritmo se o estresse estiver alto.</p>
+                <h3 className="text-white font-bold mb-2 group-hover:text-blue-400 transition-colors">Estação de Desacoplamento</h3><p className="text-zinc-500 text-sm">Protocolos para momentos de estresse.</p>
               </div>
             </div>
             {/* Radar + IA */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="bg-black/20 border border-zinc-800 rounded-3xl p-8 backdrop-blur-sm flex flex-col">
                 <div className="flex items-center gap-3 mb-6"><div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center"><Zap className="w-4 h-4 text-emerald-500" /></div>
-                  <h3 className="text-sm text-zinc-300 font-bold uppercase tracking-widest">Sugestões Contextuais</h3></div>
+                  <h3 className="text-sm text-zinc-300 font-bold uppercase tracking-widest">Próximos Passos</h3></div>
                 <div className="space-y-4 flex-1">
-                  <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-red-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-red-400 font-bold text-xs uppercase block mb-1">Atenção: Finanças</span>Alerta de recursos. Sugestão: Auditar saídas recentes.</p></div>
-                  <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-emerald-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-emerald-400 font-bold text-xs uppercase block mb-1">Ponto Forte: Carreira</span>Tração profissional forte. Mantenha o ritmo.</p></div>
+                  {redTasks.length === 0 && (
+                    <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-red-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-red-400 font-bold text-xs uppercase block mb-1">Começar</span>Crie suas primeiras tarefas na R.E.D. para iniciar sua rotina.</p></div>
+                  )}
+                  {redTasks.length > 0 && redTasks.filter(t => !t.completed).length > 0 && (
+                    <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-red-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-red-400 font-bold text-xs uppercase block mb-1">Pendente</span>{redTasks.filter(t => !t.completed).length} tarefa(s) RED aguardando execução.</p></div>
+                  )}
+                  {redTasks.length > 0 && redTasks.every(t => t.completed) && (
+                    <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-emerald-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-emerald-400 font-bold text-xs uppercase block mb-1">Excelente</span>Todas as tarefas RED concluídas hoje!</p></div>
+                  )}
+                  {challengeProgress.filter(p => p.is_active).length === 0 && (
+                    <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-zinc-600"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-zinc-400 font-bold text-xs uppercase block mb-1">Desafios</span>Explore os desafios para acelerar sua evolução.</p></div>
+                  )}
                 </div>
               </div>
               <div className="lg:col-span-2 bg-black/20 border border-zinc-800 rounded-3xl p-8 relative overflow-hidden backdrop-blur-sm">
