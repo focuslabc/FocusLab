@@ -335,9 +335,9 @@ export default function FocusLabApp() {
     ];
   })();
 
-  const focusObjective = objective?.title || 'Defina seu objeto de foco';
-  const focusTargetDate = objective?.target_date || '2026-06-30';
-  const daysRemaining = Math.max(0, Math.ceil((new Date(focusTargetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+  const focusObjective = objective?.title || 'Defina seu objeto de foco na aba R.E.D.';
+  const focusTargetDate = objective?.target_date;
+  const daysRemaining = focusTargetDate ? Math.max(0, Math.ceil((new Date(focusTargetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : null;
 
   const handleLogout = async () => {
     await signOut();
