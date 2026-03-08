@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: "/FocusLab/",
+  base: process.env.GITHUB_PAGES ? "/FocusLab/" : "/",
   server: {
     host: "::",
     port: 8080,
