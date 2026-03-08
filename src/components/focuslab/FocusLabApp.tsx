@@ -136,7 +136,7 @@ const Sidebar = ({ currentView, setView, onLogout }: { currentView: ViewState, s
   return (
     <div className="w-20 lg:w-64 h-full bg-black/40 backdrop-blur-xl border-r border-white/5 flex flex-col flex-shrink-0 z-20 shadow-2xl">
       <div className="p-8 flex items-center gap-3 mb-4">
-        <div className="w-8 h-8 bg-red-900 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-900/20"><Atom className="w-4 h-4 text-white" /></div>
+        <img src={focusLabLogo} alt="FocusLab" className="w-8 h-8 flex-shrink-0" />
         <span className="hidden lg:block text-sm font-bold tracking-[0.2em] uppercase text-white">Focus Lab</span>
       </div>
       <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
