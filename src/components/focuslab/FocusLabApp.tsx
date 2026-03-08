@@ -470,10 +470,20 @@ export default function FocusLabApp() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="bg-black/20 border border-zinc-800 rounded-3xl p-8 backdrop-blur-sm flex flex-col">
                 <div className="flex items-center gap-3 mb-6"><div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center"><Zap className="w-4 h-4 text-emerald-500" /></div>
-                  <h3 className="text-sm text-zinc-300 font-bold uppercase tracking-widest">Sugestões Contextuais</h3></div>
+                  <h3 className="text-sm text-zinc-300 font-bold uppercase tracking-widest">Próximos Passos</h3></div>
                 <div className="space-y-4 flex-1">
-                  <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-red-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-red-400 font-bold text-xs uppercase block mb-1">Atenção: Finanças</span>Alerta de recursos. Sugestão: Auditar saídas recentes.</p></div>
-                  <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-emerald-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-emerald-400 font-bold text-xs uppercase block mb-1">Ponto Forte: Carreira</span>Tração profissional forte. Mantenha o ritmo.</p></div>
+                  {redTasks.length === 0 && (
+                    <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-red-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-red-400 font-bold text-xs uppercase block mb-1">Começar</span>Crie suas primeiras tarefas na R.E.D. para iniciar sua rotina.</p></div>
+                  )}
+                  {redTasks.length > 0 && redTasks.filter(t => !t.completed).length > 0 && (
+                    <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-red-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-red-400 font-bold text-xs uppercase block mb-1">Pendente</span>{redTasks.filter(t => !t.completed).length} tarefa(s) RED aguardando execução.</p></div>
+                  )}
+                  {redTasks.length > 0 && redTasks.every(t => t.completed) && (
+                    <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-emerald-500"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-emerald-400 font-bold text-xs uppercase block mb-1">Excelente</span>Todas as tarefas RED concluídas hoje!</p></div>
+                  )}
+                  {challengeProgress.filter(p => p.is_active).length === 0 && (
+                    <div className="p-4 bg-zinc-900/50 rounded-xl border-l-2 border-zinc-600"><p className="text-sm text-zinc-300 font-medium leading-relaxed"><span className="text-zinc-400 font-bold text-xs uppercase block mb-1">Desafios</span>Explore os desafios para acelerar sua evolução.</p></div>
+                  )}
                 </div>
               </div>
               <div className="lg:col-span-2 bg-black/20 border border-zinc-800 rounded-3xl p-8 relative overflow-hidden backdrop-blur-sm">
