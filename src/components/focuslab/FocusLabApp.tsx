@@ -424,8 +424,8 @@ export default function FocusLabApp() {
               <div><h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Centro de Comando</h1><p className="text-zinc-500 font-medium">Sua jornada de evolução continua.</p></div>
               <div className="flex items-center gap-4 bg-black/40 p-3 rounded-xl border border-zinc-800 backdrop-blur-sm relative z-20">
                 <div className="text-right hidden sm:block">
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Energia Disciplinar</span>
-                  <div className="text-red-600 font-bold">Estável (72%)</div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Tarefas RED</span>
+                  <div className="text-red-600 font-bold">{redTasks.filter(t => t.completed).length}/{redTasks.length} concluídas</div>
                 </div>
                 <Flame className="w-6 h-6 text-red-600 animate-pulse drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
               </div>
@@ -438,30 +438,32 @@ export default function FocusLabApp() {
                   <Target className="w-16 h-16 text-red-500" />
                 </div>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="px-3 py-1 bg-red-900/20 border border-red-900/50 rounded-full text-red-400 text-[10px] font-bold uppercase tracking-widest">Objeto de Foco (Q1 2026)</div>
-                  <div className="text-zinc-500 text-xs font-mono">Faltam {daysRemaining} dias</div>
+                  <div className="px-3 py-1 bg-red-900/20 border border-red-900/50 rounded-full text-red-400 text-[10px] font-bold uppercase tracking-widest">Objeto de Foco</div>
+                  {daysRemaining !== null && <div className="text-zinc-500 text-xs font-mono">Faltam {daysRemaining} dias</div>}
                 </div>
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-6 max-w-2xl px-4 drop-shadow-md">{focusObjective}</h2>
               </motion.div>
             </div>
             {/* Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              <div className="bg-zinc-900/40 border border-red-900/20 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('laboratory')}>
-                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-red-900/20 rounded-lg text-red-500"><Atom className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Laboratório</span></div>
-                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">Protocolo de 3 Dias: Detox Digital</h3><p className="text-zinc-500 text-sm">Alinhado com seu foco atual.</p>
+              <div className="bg-zinc-900/40 border border-red-900/20 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('red')}>
+                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-red-900/20 rounded-lg text-red-500"><Target className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">R.E.D.</span></div>
+                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">{redTasks.length > 0 ? `${redTasks.filter(t => t.completed).length}/${redTasks.length} tarefas hoje` : 'Nenhuma tarefa ainda'}</h3>
+                <p className="text-zinc-500 text-sm">{redTasks.length > 0 ? 'Continue executando.' : 'Configure sua rotina essencial.'}</p>
               </div>
-              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('library')}>
-                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300"><Video className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Biblioteca</span></div>
-                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">A Química do Foco</h3><p className="text-zinc-500 text-sm">Conteúdo curto. Registre sua ação até 48h.</p>
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('challenges')}>
+                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300"><Flame className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Desafios</span></div>
+                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">{challengeProgress.filter(p => p.is_active).length > 0 ? `${challengeProgress.filter(p => p.is_active).length} desafio(s) ativo(s)` : 'Nenhum desafio ativo'}</h3>
+                <p className="text-zinc-500 text-sm">{challengeProgress.length > 0 ? 'Continue evoluindo.' : 'Inicie seu primeiro desafio.'}</p>
               </div>
-              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group">
-                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300"><Users className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Aliança</span></div>
-                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">Esquadrão Omega</h3>
-                <div className="flex gap-2"><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /><div className="w-2 h-2 rounded-full bg-zinc-700" /></div>
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-red-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('tasks')}>
+                <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300"><Check className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Tarefas</span></div>
+                <h3 className="text-white font-bold mb-2 group-hover:text-red-400 transition-colors">Tarefas Gerais</h3>
+                <p className="text-zinc-500 text-sm">Organize suas micro-operações.</p>
               </div>
               <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-6 hover:border-blue-900/50 transition-colors cursor-pointer group" onClick={() => setCurrentView('decoupling')}>
                 <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-zinc-800 rounded-lg text-zinc-300 group-hover:text-blue-400"><Wind className="w-5 h-5" /></div><span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Descompressão</span></div>
-                <h3 className="text-white font-bold mb-2 group-hover:text-blue-400 transition-colors">Estação de Desacoplamento</h3><p className="text-zinc-500 text-sm">Diminua o ritmo se o estresse estiver alto.</p>
+                <h3 className="text-white font-bold mb-2 group-hover:text-blue-400 transition-colors">Estação de Desacoplamento</h3><p className="text-zinc-500 text-sm">Protocolos para momentos de estresse.</p>
               </div>
             </div>
             {/* Radar + IA */}
