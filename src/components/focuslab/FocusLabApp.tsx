@@ -6,6 +6,7 @@ import { CustomRadarChart } from './CustomRadarChart';
 import { JourneyView } from './JourneyView';
 import { useAuth } from '@/hooks/useAuth';
 import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries } from '@/hooks/useSupabaseData';
+import focusLabLogo from '@/assets/focuslab-logo.png';
 import {
   LayoutDashboard, Atom, Activity, Target, BarChart3, Settings, Check, Play, ArrowRight,
   Brain, Dumbbell, BookOpen, Plus, Lock, ChevronLeft, Flame, Droplets, Smartphone, Clock,
@@ -70,7 +71,7 @@ const AuthScreen = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-black via-zinc-950 to-red-950 opacity-90" />
       <div className="flex-1 flex flex-col items-center justify-center text-center px-4 relative z-10">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-          <div className="w-16 h-16 bg-red-900 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-red-900/40"><Atom className="w-8 h-8 text-white" /></div>
+          <img src={focusLabLogo} alt="FocusLab" className="w-16 h-16 mx-auto mb-8" />
           <h2 className="text-red-600 uppercase tracking-[0.4em] text-sm mb-6 font-bold">Focus Lab</h2>
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-8 leading-tight max-w-4xl tracking-tight">Disciplina é <span className="text-zinc-500">Liberdade</span></h1>
           <p className="text-zinc-400 text-lg max-w-xl mx-auto mb-12 font-medium">Gerencie seus projetos, monitore sua consistência e execute com precisão cirúrgica.</p>
@@ -135,7 +136,7 @@ const Sidebar = ({ currentView, setView, onLogout }: { currentView: ViewState, s
   return (
     <div className="w-20 lg:w-64 h-full bg-black/40 backdrop-blur-xl border-r border-white/5 flex flex-col flex-shrink-0 z-20 shadow-2xl">
       <div className="p-8 flex items-center gap-3 mb-4">
-        <div className="w-8 h-8 bg-red-900 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-900/20"><Atom className="w-4 h-4 text-white" /></div>
+        <img src={focusLabLogo} alt="FocusLab" className="w-8 h-8 flex-shrink-0" />
         <span className="hidden lg:block text-sm font-bold tracking-[0.2em] uppercase text-white">Focus Lab</span>
       </div>
       <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
