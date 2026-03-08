@@ -317,7 +317,7 @@ export default function FocusLabApp() {
 
   // Command Center data
   const lifeAreasData = (() => {
-    const scores = { Mente: 70, Corpo: 70, Carreira: 60, Espírito: 50, Social: 50, Finanças: 50 };
+    const scores = { Mente: 0, Corpo: 0, Carreira: 0, Espírito: 0, Social: 0, Finanças: 0 };
     redTasks.forEach(task => {
       if (!task.completed) return;
       if (task.category === 'Mind') scores.Mente += 20;
