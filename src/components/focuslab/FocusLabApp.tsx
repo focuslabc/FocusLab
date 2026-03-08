@@ -385,14 +385,10 @@ export default function FocusLabApp() {
             <h1 className="text-4xl font-bold text-white mb-2">Metas Semanais</h1><p className="text-zinc-500 font-medium mb-12">Análise de consistência e aderência ao plano.</p>
             <div className="mb-12 bg-black/20 rounded-3xl p-8 border border-white/5 backdrop-blur-sm">
               <h3 className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-8">Performance Semanal</h3>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={[{ name: 'Seg', uv: 82 }, { name: 'Ter', uv: 65 }, { name: 'Qua', uv: 90 }, { name: 'Qui', uv: 85 }, { name: 'Sex', uv: 78 }, { name: 'Sab', uv: 92 }, { name: 'Hoje', uv: 75 }]}>
-                    <defs><linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#b91c1c" stopOpacity={0.3}/><stop offset="95%" stopColor="#b91c1c" stopOpacity={0}/></linearGradient></defs>
-                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '8px', color: '#fff' }} />
-                    <Area type="monotone" dataKey="uv" stroke="#b91c1c" strokeWidth={3} fillOpacity={1} fill="url(#colorUv)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="py-16 text-center">
+                <BarChart3 className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+                <p className="text-zinc-500 font-medium mb-2">Nenhum dado de performance ainda</p>
+                <p className="text-zinc-600 text-sm">Complete tarefas na R.E.D. para gerar dados de performance.</p>
               </div>
             </div>
           </div>
