@@ -1,6 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+// ---- Admin Role Check ----
+export function useIsAdmin(userId: string | undefined) {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) { setLoading(false); return; }
+    supabase.rpc('has_role', { _user_id: userId, _role: 'admin' })
+      .then(({ data, error }) => {
+        if (!error) setIsAdmin(!!data);
+        setLoading(false);
+      });
+  }, [userId]);
+
+  return { isAdmin, loading };
+}
 
 // ---- RED Tasks ----
 export function useRedTasks(userId: string | undefined) {
@@ -96,6 +113,7 @@ export function useObjective(userId: string | undefined) {
 export function useGeneralTasks(userId: string | undefined) {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
@@ -126,11 +144,15 @@ export function useGeneralTasks(userId: string | undefined) {
     else await fetchTasks();
   }, [tasks, fetchTasks]);
 
-  const updateTaskText = useCallback(async (id: string, text: string) => {
-    const { error } = await supabase.from('general_tasks').update({ text }).eq('id', id);
-    if (error) toast.error('Erro');
-    else await fetchTasks();
-  }, [fetchTasks]);
+  const updateTaskText = useCallback((id: string, text: string) => {
+    // Update local state immediately for responsive typing
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, text } : t));
+    // Debounce DB save
+    if (debounceTimers.current[id]) clearTimeout(debounceTimers.current[id]);
+    debounceTimers.current[id] = setTimeout(async () => {
+      await supabase.from('general_tasks').update({ text }).eq('id', id);
+    }, 800);
+  }, []);
 
   const removeCompleted = useCallback(async () => {
     const completedIds = tasks.filter(t => t.completed).map(t => t.id);
@@ -171,10 +193,11 @@ export function useChallengeProgress(userId: string | undefined) {
   return { progress, loading, startChallenge };
 }
 
-// ---- Journal Entries ----
+// ---- Journal Entries (debounced) ----
 export function useJournalEntries(userId: string | undefined) {
   const [entries, setEntries] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
+  const debounceTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const fetchEntries = useCallback(async () => {
     if (!userId) return;
@@ -195,24 +218,28 @@ export function useJournalEntries(userId: string | undefined) {
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
-  const saveEntry = useCallback(async (questionIndex: number, content: string) => {
+  const saveEntry = useCallback((questionIndex: number, content: string) => {
     if (!userId) return;
-    const today = new Date().toISOString().split('T')[0];
-    // Upsert: check if entry exists
-    const { data: existing } = await supabase
-      .from('journal_entries')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('question_index', questionIndex)
-      .eq('entry_date', today)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase.from('journal_entries').update({ content }).eq('id', existing.id);
-    } else {
-      await supabase.from('journal_entries').insert({ user_id: userId, question_index: questionIndex, content, entry_date: today });
-    }
+    // Update local state immediately
     setEntries(prev => ({ ...prev, [questionIndex]: content }));
+    // Debounce DB save
+    if (debounceTimers.current[questionIndex]) clearTimeout(debounceTimers.current[questionIndex]);
+    debounceTimers.current[questionIndex] = setTimeout(async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: existing } = await supabase
+        .from('journal_entries')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('question_index', questionIndex)
+        .eq('entry_date', today)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from('journal_entries').update({ content }).eq('id', existing.id);
+      } else {
+        await supabase.from('journal_entries').insert({ user_id: userId, question_index: questionIndex, content, entry_date: today });
+      }
+    }, 800);
   }, [userId]);
 
   return { entries, loading, saveEntry };
@@ -245,4 +272,104 @@ export function useProfile(userId: string | undefined) {
   }, [profile, fetchProfile]);
 
   return { profile, loading, updateProfile };
+}
+
+// ---- Projects ----
+export function useProjects(userId: string | undefined) {
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProjects = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) console.error(error);
+    else setProjects(data || []);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  const addProject = useCallback(async (title: string, description?: string) => {
+    if (!userId) return;
+    const { error } = await supabase.from('projects').insert({ title, description: description || '', user_id: userId });
+    if (error) toast.error('Erro ao criar projeto');
+    else { toast.success('Projeto criado!'); await fetchProjects(); }
+  }, [userId, fetchProjects]);
+
+  const removeProject = useCallback(async (id: string) => {
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) toast.error('Erro ao remover projeto');
+    else { toast.success('Projeto removido'); await fetchProjects(); }
+  }, [fetchProjects]);
+
+  return { projects, loading, addProject, removeProject };
+}
+
+// ---- Library Content ----
+export function useLibraryContent(categoryId?: string) {
+  const [content, setContent] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchContent = useCallback(async () => {
+    let query = supabase.from('library_content').select('*').order('created_at', { ascending: false });
+    if (categoryId) query = query.eq('category_id', categoryId);
+    const { data, error } = await query;
+    if (error) console.error(error);
+    else setContent(data || []);
+    setLoading(false);
+  }, [categoryId]);
+
+  useEffect(() => { fetchContent(); }, [fetchContent]);
+
+  const addContent = useCallback(async (item: { category_id: string; title: string; description?: string; content_url?: string }) => {
+    const { error } = await supabase.from('library_content').insert(item);
+    if (error) toast.error('Erro ao adicionar conteúdo');
+    else { toast.success('Conteúdo adicionado!'); await fetchContent(); }
+  }, [fetchContent]);
+
+  const removeContent = useCallback(async (id: string) => {
+    const { error } = await supabase.from('library_content').delete().eq('id', id);
+    if (error) toast.error('Erro ao remover conteúdo');
+    else { toast.success('Conteúdo removido'); await fetchContent(); }
+  }, [fetchContent]);
+
+  return { content, loading, addContent, removeContent };
+}
+
+// ---- Coworking Rooms ----
+export function useCoworkingRooms(userId: string | undefined) {
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRooms = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('coworking_rooms')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+    if (error) console.error(error);
+    else setRooms(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchRooms(); }, [fetchRooms]);
+
+  const createRoom = useCallback(async (name: string, roomType: string, description?: string) => {
+    if (!userId) return;
+    const { error } = await supabase.from('coworking_rooms').insert({ name, room_type: roomType, description: description || '', created_by: userId });
+    if (error) toast.error('Erro ao criar sala');
+    else { toast.success('Sala criada!'); await fetchRooms(); }
+  }, [userId, fetchRooms]);
+
+  const deleteRoom = useCallback(async (id: string) => {
+    const { error } = await supabase.from('coworking_rooms').delete().eq('id', id);
+    if (error) toast.error('Erro ao remover sala');
+    else { toast.success('Sala removida'); await fetchRooms(); }
+  }, [fetchRooms]);
+
+  return { rooms, loading, createRoom, deleteRoom };
 }
