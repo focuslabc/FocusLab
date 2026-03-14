@@ -125,8 +125,8 @@ export function RedViewReal({
   }
 
   return (
-    <div className="h-full w-full p-6 lg:p-12 overflow-y-auto">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-6">
+    <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 sm:mb-8 gap-4 sm:gap-6">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">R.E.D. - Rotina Essencial Diária</h1>
           <p className="text-zinc-500 font-medium">Sua base inegociável de execução</p>
