@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: { name: name || 'Operador' },
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: 'https://focus-lab-web-app.vercel.app/',
       },
     });
     return { error };

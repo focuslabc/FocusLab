@@ -6,16 +6,11 @@ import { toast } from 'sonner';
 export function useIsAdmin(userId: string | undefined) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
     supabase.rpc('has_role', { _user_id: userId, _role: 'admin' })
-      .then(({ data, error }) => {
-        if (!error) setIsAdmin(!!data);
-        setLoading(false);
-      });
+      .then(({ data, error }) => { if (!error) setIsAdmin(!!data); setLoading(false); });
   }, [userId]);
-
   return { isAdmin, loading };
 }
 
@@ -23,19 +18,13 @@ export function useIsAdmin(userId: string | undefined) {
 export function useRedTasks(userId: string | undefined) {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
-    const { data, error } = await supabase
-      .from('red_tasks')
-      .select('*')
-      .eq('user_id', userId)
-      .order('position');
+    const { data, error } = await supabase.from('red_tasks').select('*').eq('user_id', userId).order('position');
     if (error) { console.error(error); toast.error('Erro ao carregar tarefas RED'); }
     else setTasks(data || []);
     setLoading(false);
   }, [userId]);
-
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   const addTask = useCallback(async (t: { text: string; category: string; completed: boolean; position: number }) => {
@@ -48,10 +37,7 @@ export function useRedTasks(userId: string | undefined) {
   const toggleTask = useCallback(async (id: string) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
-    const { error } = await supabase.from('red_tasks').update({
-      completed: !task.completed,
-      completed_at: !task.completed ? new Date().toISOString() : null,
-    }).eq('id', id);
+    const { error } = await supabase.from('red_tasks').update({ completed: !task.completed, completed_at: !task.completed ? new Date().toISOString() : null }).eq('id', id);
     if (error) toast.error('Erro ao atualizar tarefa');
     else await fetchTasks();
   }, [tasks, fetchTasks]);
@@ -75,21 +61,13 @@ export function useRedTasks(userId: string | undefined) {
 export function useObjective(userId: string | undefined) {
   const [objective, setObjective] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
   const fetchObjective = useCallback(async () => {
     if (!userId) return;
-    const { data, error } = await supabase
-      .from('objectives')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await supabase.from('objectives').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (error) console.error(error);
     else setObjective(data);
     setLoading(false);
   }, [userId]);
-
   useEffect(() => { fetchObjective(); }, [fetchObjective]);
 
   const updateObjective = useCallback(async (updates: any) => {
@@ -117,16 +95,11 @@ export function useGeneralTasks(userId: string | undefined) {
 
   const fetchTasks = useCallback(async () => {
     if (!userId) return;
-    const { data, error } = await supabase
-      .from('general_tasks')
-      .select('*')
-      .eq('user_id', userId)
-      .order('position');
+    const { data, error } = await supabase.from('general_tasks').select('*').eq('user_id', userId).order('position');
     if (error) console.error(error);
     else setTasks(data || []);
     setLoading(false);
   }, [userId]);
-
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   const addTask = useCallback(async (text: string) => {
@@ -145,9 +118,7 @@ export function useGeneralTasks(userId: string | undefined) {
   }, [tasks, fetchTasks]);
 
   const updateTaskText = useCallback((id: string, text: string) => {
-    // Update local state immediately for responsive typing
     setTasks(prev => prev.map(t => t.id === id ? { ...t, text } : t));
-    // Debounce DB save
     if (debounceTimers.current[id]) clearTimeout(debounceTimers.current[id]);
     debounceTimers.current[id] = setTimeout(async () => {
       await supabase.from('general_tasks').update({ text }).eq('id', id);
@@ -172,15 +143,11 @@ export function useChallengeProgress(userId: string | undefined) {
 
   const fetchProgress = useCallback(async () => {
     if (!userId) return;
-    const { data, error } = await supabase
-      .from('challenge_progress')
-      .select('*')
-      .eq('user_id', userId);
+    const { data, error } = await supabase.from('challenge_progress').select('*').eq('user_id', userId);
     if (error) console.error(error);
     else setProgress(data || []);
     setLoading(false);
   }, [userId]);
-
   useEffect(() => { fetchProgress(); }, [fetchProgress]);
 
   const startChallenge = useCallback(async (challengeId: number) => {
@@ -190,7 +157,27 @@ export function useChallengeProgress(userId: string | undefined) {
     else { toast.success('Desafio iniciado!'); await fetchProgress(); }
   }, [userId, fetchProgress]);
 
-  return { progress, loading, startChallenge };
+  const pauseChallenge = useCallback(async (id: string) => {
+    const item = progress.find(p => p.id === id);
+    if (!item) return;
+    if (item.paused_at) {
+      // Resume
+      const { error } = await supabase.from('challenge_progress').update({ paused_at: null }).eq('id', id);
+      if (error) toast.error('Erro'); else { toast.success('Desafio retomado!'); await fetchProgress(); }
+    } else {
+      // Pause
+      const { error } = await supabase.from('challenge_progress').update({ paused_at: new Date().toISOString() }).eq('id', id);
+      if (error) toast.error('Erro'); else { toast.success('Desafio pausado'); await fetchProgress(); }
+    }
+  }, [progress, fetchProgress]);
+
+  const stopChallenge = useCallback(async (id: string) => {
+    const { error } = await supabase.from('challenge_progress').update({ is_active: false, completed_at: new Date().toISOString() }).eq('id', id);
+    if (error) toast.error('Erro ao parar desafio');
+    else { toast.success('Desafio encerrado'); await fetchProgress(); }
+  }, [fetchProgress]);
+
+  return { progress, loading, startChallenge, pauseChallenge, stopChallenge };
 }
 
 // ---- Journal Entries (debounced) ----
@@ -202,11 +189,7 @@ export function useJournalEntries(userId: string | undefined) {
   const fetchEntries = useCallback(async () => {
     if (!userId) return;
     const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('journal_entries')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('entry_date', today);
+    const { data, error } = await supabase.from('journal_entries').select('*').eq('user_id', userId).eq('entry_date', today);
     if (error) console.error(error);
     else {
       const map: Record<number, string> = {};
@@ -215,30 +198,17 @@ export function useJournalEntries(userId: string | undefined) {
     }
     setLoading(false);
   }, [userId]);
-
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
   const saveEntry = useCallback((questionIndex: number, content: string) => {
     if (!userId) return;
-    // Update local state immediately
     setEntries(prev => ({ ...prev, [questionIndex]: content }));
-    // Debounce DB save
     if (debounceTimers.current[questionIndex]) clearTimeout(debounceTimers.current[questionIndex]);
     debounceTimers.current[questionIndex] = setTimeout(async () => {
       const today = new Date().toISOString().split('T')[0];
-      const { data: existing } = await supabase
-        .from('journal_entries')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('question_index', questionIndex)
-        .eq('entry_date', today)
-        .maybeSingle();
-
-      if (existing) {
-        await supabase.from('journal_entries').update({ content }).eq('id', existing.id);
-      } else {
-        await supabase.from('journal_entries').insert({ user_id: userId, question_index: questionIndex, content, entry_date: today });
-      }
+      const { data: existing } = await supabase.from('journal_entries').select('id').eq('user_id', userId).eq('question_index', questionIndex).eq('entry_date', today).maybeSingle();
+      if (existing) await supabase.from('journal_entries').update({ content }).eq('id', existing.id);
+      else await supabase.from('journal_entries').insert({ user_id: userId, question_index: questionIndex, content, entry_date: today });
     }, 800);
   }, [userId]);
 
@@ -252,16 +222,11 @@ export function useProfile(userId: string | undefined) {
 
   const fetchProfile = useCallback(async () => {
     if (!userId) return;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
+    const { data, error } = await supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle();
     if (error) console.error(error);
     else setProfile(data);
     setLoading(false);
   }, [userId]);
-
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   const updateProfile = useCallback(async (updates: any) => {
@@ -271,7 +236,17 @@ export function useProfile(userId: string | undefined) {
     else { toast.success('Perfil atualizado'); await fetchProfile(); }
   }, [profile, fetchProfile]);
 
-  return { profile, loading, updateProfile };
+  const uploadAvatar = useCallback(async (file: File) => {
+    if (!userId) return;
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${userId}/avatar.${fileExt}`;
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+    if (uploadError) { toast.error('Erro ao enviar foto'); return; }
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+    await updateProfile({ avatar_url: publicUrl });
+  }, [userId, updateProfile]);
+
+  return { profile, loading, updateProfile, uploadAvatar };
 }
 
 // ---- Projects ----
@@ -281,16 +256,11 @@ export function useProjects(userId: string | undefined) {
 
   const fetchProjects = useCallback(async () => {
     if (!userId) return;
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('projects').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (error) console.error(error);
     else setProjects(data || []);
     setLoading(false);
   }, [userId]);
-
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
   const addProject = useCallback(async (title: string, description?: string) => {
@@ -300,13 +270,19 @@ export function useProjects(userId: string | undefined) {
     else { toast.success('Projeto criado!'); await fetchProjects(); }
   }, [userId, fetchProjects]);
 
+  const updateProject = useCallback(async (id: string, updates: any) => {
+    const { error } = await supabase.from('projects').update(updates).eq('id', id);
+    if (error) toast.error('Erro ao atualizar projeto');
+    else await fetchProjects();
+  }, [fetchProjects]);
+
   const removeProject = useCallback(async (id: string) => {
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) toast.error('Erro ao remover projeto');
     else { toast.success('Projeto removido'); await fetchProjects(); }
   }, [fetchProjects]);
 
-  return { projects, loading, addProject, removeProject };
+  return { projects, loading, addProject, updateProject, removeProject };
 }
 
 // ---- Library Content ----
@@ -322,7 +298,6 @@ export function useLibraryContent(categoryId?: string) {
     else setContent(data || []);
     setLoading(false);
   }, [categoryId]);
-
   useEffect(() => { fetchContent(); }, [fetchContent]);
 
   const addContent = useCallback(async (item: { category_id: string; title: string; description?: string; content_url?: string }) => {
@@ -346,21 +321,16 @@ export function useCoworkingRooms(userId: string | undefined) {
   const [loading, setLoading] = useState(true);
 
   const fetchRooms = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('coworking_rooms')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('coworking_rooms').select('*').eq('is_active', true).order('created_at', { ascending: false });
     if (error) console.error(error);
     else setRooms(data || []);
     setLoading(false);
   }, []);
-
   useEffect(() => { fetchRooms(); }, [fetchRooms]);
 
-  const createRoom = useCallback(async (name: string, roomType: string, description?: string) => {
+  const createRoom = useCallback(async (name: string, roomType: string, description?: string, meetLink?: string) => {
     if (!userId) return;
-    const { error } = await supabase.from('coworking_rooms').insert({ name, room_type: roomType, description: description || '', created_by: userId });
+    const { error } = await supabase.from('coworking_rooms').insert({ name, room_type: roomType, description: description || '', created_by: userId, meet_link: meetLink || '' });
     if (error) toast.error('Erro ao criar sala');
     else { toast.success('Sala criada!'); await fetchRooms(); }
   }, [userId, fetchRooms]);
@@ -372,4 +342,48 @@ export function useCoworkingRooms(userId: string | undefined) {
   }, [fetchRooms]);
 
   return { rooms, loading, createRoom, deleteRoom };
+}
+
+// ---- Coworking Messages (realtime) ----
+export function useCoworkingMessages(roomId: string | null) {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!roomId) { setMessages([]); setLoading(false); return; }
+    
+    const fetchMessages = async () => {
+      const { data, error } = await supabase.from('coworking_messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true });
+      if (error) console.error(error);
+      else setMessages(data || []);
+      setLoading(false);
+    };
+    fetchMessages();
+
+    const channel = supabase.channel(`room-${roomId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'coworking_messages', filter: `room_id=eq.${roomId}` },
+        (payload) => { setMessages(prev => [...prev, payload.new]); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [roomId]);
+
+  const sendMessage = useCallback(async (userId: string, userName: string, content: string) => {
+    if (!roomId) return;
+    const { error } = await supabase.from('coworking_messages').insert({ room_id: roomId, user_id: userId, user_name: userName, content });
+    if (error) toast.error('Erro ao enviar mensagem');
+  }, [roomId]);
+
+  return { messages, loading, sendMessage };
+}
+
+// ---- Fetch any profile by userId ----
+export function usePublicProfile(userId: string | undefined) {
+  const [profile, setProfile] = useState<any>(null);
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle()
+      .then(({ data }) => setProfile(data));
+  }, [userId]);
+  return profile;
 }
