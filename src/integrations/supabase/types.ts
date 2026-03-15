@@ -22,6 +22,7 @@ export type Database = {
           days_completed: number
           id: string
           is_active: boolean
+          paused_at: string | null
           started_at: string
           updated_at: string
           user_id: string
@@ -33,6 +34,7 @@ export type Database = {
           days_completed?: number
           id?: string
           is_active?: boolean
+          paused_at?: string | null
           started_at?: string
           updated_at?: string
           user_id: string
@@ -44,11 +46,47 @@ export type Database = {
           days_completed?: number
           id?: string
           is_active?: boolean
+          paused_at?: string | null
           started_at?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      coworking_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          room_id: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          room_id: string
+          user_id: string
+          user_name?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          room_id?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coworking_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "coworking_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       coworking_rooms: {
         Row: {
@@ -57,6 +95,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          meet_link: string | null
           name: string
           room_type: string
           updated_at: string
@@ -67,6 +106,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          meet_link?: string | null
           name: string
           room_type?: string
           updated_at?: string
@@ -77,6 +117,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          meet_link?: string | null
           name?: string
           room_type?: string
           updated_at?: string
