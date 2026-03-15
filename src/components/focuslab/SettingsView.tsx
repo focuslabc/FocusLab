@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
-import { User, Moon, Monitor, Globe } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { User, Moon, Sun, Monitor, Camera } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
 
-export function SettingsView({ userId }: { userId?: string }) {
+export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: string; darkMode: boolean; setDarkMode: (v: boolean) => void }) {
   const [activeTab, setActiveTab] = useState<'profile' | 'app'>('profile');
-  const { profile, loading, updateProfile } = useProfile(userId);
+  const { profile, loading, updateProfile, uploadAvatar } = useProfile(userId);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [initialized, setInitialized] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (profile && !initialized) {
     setDisplayName(profile.display_name || '');
@@ -19,6 +20,13 @@ export function SettingsView({ userId }: { userId?: string }) {
 
   const handleSaveProfile = async () => {
     await updateProfile({ display_name: displayName, bio });
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error('Imagem muito grande (máx 2MB)'); return; }
+    await uploadAvatar(file);
   };
 
   return (
@@ -49,10 +57,23 @@ export function SettingsView({ userId }: { userId?: string }) {
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8">
                   <h2 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2"><User className="w-5 h-5 text-red-500" /> Identidade</h2>
                   <div className="flex items-center gap-4 sm:gap-6 mb-8">
-                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center text-zinc-500 hover:border-red-500 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0">
-                      <span className="text-xs font-bold uppercase">Foto</span>
+                    <div onClick={() => fileInputRef.current?.click()}
+                      className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-zinc-800 border-2 border-dashed border-zinc-700 flex items-center justify-center text-zinc-500 hover:border-red-500 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0 overflow-hidden relative group">
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera className="w-6 h-6" />
+                      )}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Camera className="w-5 h-5 text-white" />
+                      </div>
                     </div>
-                    <div className="min-w-0"><h3 className="text-white font-bold text-base sm:text-lg truncate">{profile?.display_name || 'Operador'}</h3><p className="text-zinc-500 text-sm">Focus Lab</p></div>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                    <div className="min-w-0">
+                      <h3 className="text-white font-bold text-base sm:text-lg truncate">{profile?.display_name || 'Operador'}</h3>
+                      <p className="text-zinc-500 text-sm">Focus Lab</p>
+                      <p className="text-zinc-600 text-xs mt-1">Clique na foto para alterar</p>
+                    </div>
                   </div>
                   <div className="space-y-4">
                     <div><label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Nome de Exibição</label>
@@ -70,17 +91,18 @@ export function SettingsView({ userId }: { userId?: string }) {
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center"><Moon className="w-5 h-5 text-white" /></div>
-                        <div><div className="text-white font-medium text-sm sm:text-base">Modo Escuro</div><div className="text-zinc-500 text-xs">O tema padrão do Focus Lab é escuro.</div></div>
+                        <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
+                          {darkMode ? <Moon className="w-5 h-5 text-white" /> : <Sun className="w-5 h-5 text-yellow-400" />}
+                        </div>
+                        <div>
+                          <div className="text-white font-medium text-sm sm:text-base">{darkMode ? 'Modo Escuro' : 'Modo Claro'}</div>
+                          <div className="text-zinc-500 text-xs">{darkMode ? 'Tema escuro ativado' : 'Tema claro ativado'}</div>
+                        </div>
                       </div>
-                      <div className="w-12 h-6 bg-red-900/50 rounded-full relative cursor-not-allowed opacity-50"><div className="absolute right-1 top-1 w-4 h-4 bg-red-500 rounded-full"></div></div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center"><Globe className="w-5 h-5 text-white" /></div>
-                        <div><div className="text-white font-medium text-sm sm:text-base">Idioma</div><div className="text-zinc-500 text-xs">Português (Brasil)</div></div>
-                      </div>
-                      <select className="bg-black/40 border border-zinc-800 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-red-600"><option>PT-BR</option><option>EN-US</option></select>
+                      <button onClick={() => { setDarkMode(!darkMode); localStorage.setItem('focuslab-theme', !darkMode ? 'dark' : 'light'); }}
+                        className={`w-12 h-6 rounded-full relative transition-colors ${darkMode ? 'bg-red-900/50' : 'bg-zinc-600'}`}>
+                        <div className={`absolute top-1 w-4 h-4 rounded-full transition-all ${darkMode ? 'right-1 bg-red-500' : 'left-1 bg-white'}`}></div>
+                      </button>
                     </div>
                   </div>
                 </div>
