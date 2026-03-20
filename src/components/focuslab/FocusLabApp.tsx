@@ -6,21 +6,22 @@ import { CustomRadarChart } from './CustomRadarChart';
 import { JourneyView } from './JourneyView';
 import { ChatbotPanel } from './ChatbotPanel';
 import { useAuth } from '@/hooks/useAuth';
-import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries, useProjects, useLibraryContent, useCoworkingRooms, useIsAdmin, useProfile, useCoworkingMessages } from '@/hooks/useSupabaseData';
+import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries, useProjects, useLibraryContent, useCoworkingRooms, useIsAdmin, useProfile, useCoworkingMessages, checkUsernameAvailable } from '@/hooks/useSupabaseData';
+import { supabase } from '@/integrations/supabase/client';
 import focusLabLogo from '@/assets/focuslab-logo.png';
 import {
   LayoutDashboard, Atom, Activity, Target, BarChart3, Settings, Check, Play, ArrowRight,
   Brain, Dumbbell, BookOpen, Plus, Lock, Flame, Droplets, Smartphone, Clock,
   X, Zap, Users, Map, Shield, Video, FileText, Calendar, Trash2, Save, LogOut, Wind, Loader2,
-  MessageCircle, Phone, ArrowLeft, Menu, Send, Pause, Square, ExternalLink, GraduationCap, BookMarked, Lightbulb, Edit3
+  MessageCircle, Phone, ArrowLeft, Menu, Send, Pause, Square, ExternalLink, GraduationCap, BookMarked, Lightbulb, Edit3, Bot, Upload, Reply
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
-type ViewState = 'command_center' | 'red' | 'tasks' | 'challenges' | 'weekly_goals' | 'laboratory' | 'journal' | 'library' | 'journey' | 'coworking' | 'settings' | 'decoupling';
+type ViewState = 'command_center' | 'red' | 'tasks' | 'challenges' | 'weekly_goals' | 'laboratory' | 'journal' | 'library' | 'journey' | 'coworking' | 'settings' | 'decoupling' | 'chatbot';
 
 const SYSTEM_CHALLENGES = [
   { id: 1, title: 'Jejum de Dopamina', icon: Brain, duration: '7 dias', days: 7, desc: 'Reduza estímulos artificiais para recuperar a sensibilidade dos receptores.' },
@@ -52,7 +53,23 @@ const AuthScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameAvail, setUsernameAvail] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const usernameTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleUsernameChange = (val: string) => {
+    const clean = val.toLowerCase().replace(/[^a-z0-9.]/g, '');
+    setUsername(clean);
+    setUsernameAvail(null);
+    if (usernameTimer.current) clearTimeout(usernameTimer.current);
+    if (clean.length >= 3) {
+      usernameTimer.current = setTimeout(async () => {
+        const avail = await checkUsernameAvailable(clean);
+        setUsernameAvail(avail);
+      }, 500);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +80,9 @@ const AuthScreen = () => {
         if (error) { toast.error(error.message || 'Erro ao entrar'); setIsLoading(false); }
         else toast.success('Acesso autorizado.');
       } else {
-        const { error } = await signUp(email, password, name);
+        if (username.length < 3) { toast.error('Username deve ter pelo menos 3 caracteres'); setIsLoading(false); return; }
+        if (usernameAvail === false) { toast.error('Este @username já está em uso'); setIsLoading(false); return; }
+        const { error } = await signUp(email, password, name, username);
         if (error) { toast.error(error.message || 'Erro ao cadastrar'); setIsLoading(false); }
         else { toast.success('Conta criada! Verifique seu e-mail para confirmar.'); setIsLoading(false); }
       }
@@ -88,7 +107,7 @@ const AuthScreen = () => {
       <AnimatePresence>
         {showModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-zinc-950 border border-red-900/30 w-full max-w-md rounded-3xl p-8 relative overflow-hidden shadow-[0_0_50px_rgba(153,27,27,0.1)]">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-zinc-950 border border-red-900/30 w-full max-w-md rounded-3xl p-8 relative overflow-hidden shadow-[0_0_50px_rgba(153,27,27,0.1)] max-h-[90vh] overflow-y-auto">
               <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 p-2 text-zinc-500 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
               <div className="mb-8 text-center">
                 <div className="w-12 h-12 bg-red-900/20 rounded-xl flex items-center justify-center mx-auto mb-4 border border-red-900/30"><Lock className="w-6 h-6 text-red-600" /></div>
@@ -96,8 +115,18 @@ const AuthScreen = () => {
               </div>
               <form onSubmit={handleAuth} className="space-y-4">
                 {mode === 'signup' && (
-                  <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Nome</label>
-                    <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="Seu nome completo" /></div>
+                  <>
+                    <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Nome</label>
+                      <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="Seu nome completo" /></div>
+                    <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">@Username</label>
+                      <input type="text" required value={username} onChange={(e) => handleUsernameChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="seu.usuario" minLength={3} />
+                      {username.length >= 3 && usernameAvail !== null && (
+                        <p className={`text-xs mt-1 ${usernameAvail ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {usernameAvail ? '✓ Username disponível' : '✗ Username já em uso'}
+                        </p>
+                      )}
+                    </div>
+                  </>
                 )}
                 <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">E-mail</label>
                   <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="exemplo@email.com" /></div>
@@ -109,7 +138,7 @@ const AuthScreen = () => {
                 </button>
               </form>
               <div className="mt-6 pt-6 border-t border-white/5 text-center">
-                <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setName(''); }} className="text-zinc-400 hover:text-red-500 text-sm font-semibold transition-colors">
+                <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setName(''); setUsername(''); setUsernameAvail(null); }} className="text-zinc-400 hover:text-red-500 text-sm font-semibold transition-colors">
                   {mode === 'login' ? 'Não tem uma conta? Cadastre-se aqui!' : 'Já possui uma conta? Entre aqui.'}
                 </button>
               </div>
@@ -135,6 +164,7 @@ const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, pr
     { id: 'library', icon: BookOpen, label: 'Biblioteca' },
     { id: 'journey', icon: Map, label: 'Modo Jornada' },
     { id: 'coworking', icon: Users, label: 'Co-working' },
+    { id: 'chatbot', icon: Bot, label: 'Assistente IA' },
   ];
 
   const sidebarContent = (
@@ -173,11 +203,9 @@ const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, pr
 
   return (
     <>
-      {/* Desktop sidebar */}
       <div className="hidden md:flex w-64 h-full bg-black/40 backdrop-blur-xl border-r border-white/5 flex-col flex-shrink-0 z-20 shadow-2xl">
         {sidebarContent}
       </div>
-      {/* Mobile overlay */}
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -265,43 +293,100 @@ const TasksView = ({ userId }: { userId: string }) => {
 // --- Journal View ---
 const JournalView = ({ userId }: { userId: string }) => {
   const { entries, saveEntry } = useJournalEntries(userId);
+  const [completed, setCompleted] = useState(false);
+  const [aiSummary, setAiSummary] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
   const questions = [
     { q: 'O que impediu você de completar 100% da R.E.D. hoje?', ph: 'Identifique gatilhos, padrões ou situações...' },
     { q: 'Qual foi o momento exato em que você desviou do protocolo?', ph: 'Hora, contexto, estado emocional...' },
     { q: 'Que sistema pode prevenir isso amanhã?', ph: 'Seja específico e actionável...' },
     { q: 'Reflexão livre: O que você aprendeu hoje?', ph: 'Escreva livremente...' },
   ];
+
+  // Check time window: open 18:00, reset 03:00
+  const now = new Date();
+  const hour = now.getHours();
+  const isOpen = hour >= 18 || hour < 3;
+  const allFilled = questions.every((_, i) => (entries[i] || '').trim().length > 0);
+
+  const handleContinue = async () => {
+    setCompleted(true);
+    setAiLoading(true);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ messages: [{ role: 'user', content: `Analise as respostas do meu diário de reconfiguração de hoje e dê um resumo com insights e sugestões de melhoria. Seja direto e motivador.\n\n${questions.map((q, i) => `${q.q}\nResposta: ${entries[i] || '(vazio)'}`).join('\n\n')}` }] }),
+      });
+      if (!resp.ok || !resp.body) throw new Error('Erro');
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '', result = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n')) !== -1) {
+          let line = buf.slice(0, idx); buf = buf.slice(idx + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ') || line.trim() === '') continue;
+          const json = line.slice(6).trim();
+          if (json === '[DONE]') break;
+          try { const p = JSON.parse(json); const c = p.choices?.[0]?.delta?.content; if (c) { result += c; setAiSummary(result); } } catch {}
+        }
+      }
+    } catch { setAiSummary('Erro ao gerar resumo. Tente novamente.'); }
+    setAiLoading(false);
+  };
+
+  if (completed) {
+    return (
+      <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2 flex items-center gap-3"><FileText className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" /> Resumo do Diário</h1>
+        <p className="text-zinc-500 font-medium mb-6 text-sm sm:text-base">Análise da IA sobre suas respostas de hoje.</p>
+        <div className="max-w-3xl mx-auto bg-black/20 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+          {aiLoading && !aiSummary && <div className="flex items-center gap-3"><Loader2 className="w-5 h-5 text-red-500 animate-spin" /><span className="text-zinc-400 text-sm">Gerando resumo...</span></div>}
+          {aiSummary && <div className="text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">{aiSummary}</div>}
+        </div>
+        <button onClick={() => { setCompleted(false); setAiSummary(''); }} className="mt-6 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors">
+          <ArrowLeft className="w-4 h-4 inline mr-2" /> Voltar ao Diário
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
       <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2 flex items-center gap-3"><FileText className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" /> Diário de Reconfiguração</h1>
-      <p className="text-zinc-500 font-medium mb-8 text-sm sm:text-base">Reflexão guiada para identificar padrões.</p>
-      <div className="max-w-3xl mx-auto space-y-4">
+      <p className="text-zinc-500 font-medium mb-2 text-sm sm:text-base">Reflexão guiada para identificar padrões.</p>
+      {!isOpen && <p className="text-yellow-500/80 text-xs mb-4 bg-yellow-900/10 border border-yellow-900/20 px-3 py-2 rounded-lg inline-block">⏰ O diário abre às 18:00 e reseta às 03:00.</p>}
+      <div className="max-w-3xl mx-auto space-y-4 mt-4">
         {questions.map((item, i) => (
           <div key={i} className="bg-black/20 border border-white/5 rounded-xl p-4 sm:p-6 backdrop-blur-sm">
             <label className="block text-white font-bold mb-3 text-sm">{item.q}</label>
-            <textarea value={entries[i] || ''} onChange={(e) => saveEntry(i, e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 min-h-[80px] resize-y font-medium leading-relaxed" placeholder={item.ph} />
+            <textarea value={entries[i] || ''} onChange={(e) => saveEntry(i, e.target.value)} disabled={!isOpen}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 min-h-[80px] resize-y font-medium leading-relaxed disabled:opacity-50" placeholder={item.ph} />
           </div>
         ))}
+        {allFilled && isOpen && (
+          <button onClick={handleContinue} className="w-full py-4 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2">
+            Continuar <ArrowRight className="w-5 h-5" />
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
-// --- Coworking View ---
-const CoworkingView = ({ userId, userName }: { userId: string; userName: string }) => {
+// --- Coworking View (persistent chat overlay) ---
+const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom }: { userId: string; userName: string; userAvatar?: string; activeRoom: any; setActiveRoom: (r: any) => void }) => {
   const { rooms, loading, createRoom, deleteRoom } = useCoworkingRooms(userId);
   const [showCreate, setShowCreate] = useState(false);
   const [roomName, setRoomName] = useState('');
   const [roomType, setRoomType] = useState<'chat' | 'call'>('chat');
   const [roomDesc, setRoomDesc] = useState('');
   const [meetLink, setMeetLink] = useState('');
-  const [selectedRoom, setSelectedRoom] = useState<any>(null);
-  const { messages, sendMessage } = useCoworkingMessages(selectedRoom?.id || null);
-  const [chatInput, setChatInput] = useState('');
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const handleCreate = async () => {
     if (!roomName.trim()) return;
@@ -310,45 +395,7 @@ const CoworkingView = ({ userId, userName }: { userId: string; userName: string 
     setRoomName(''); setRoomDesc(''); setMeetLink(''); setShowCreate(false);
   };
 
-  const handleSendMessage = async () => {
-    if (!chatInput.trim()) return;
-    await sendMessage(userId, userName, chatInput.trim());
-    setChatInput('');
-  };
-
   if (loading) return <div className="h-full flex items-center justify-center"><Loader2 className="w-12 h-12 text-red-600 animate-spin" /></div>;
-
-  // Chat room view
-  if (selectedRoom && selectedRoom.room_type === 'chat') {
-    return (
-      <div className="h-full w-full flex flex-col">
-        <div className="p-4 border-b border-zinc-800 flex items-center gap-3">
-          <button onClick={() => setSelectedRoom(null)} className="p-2 hover:bg-white/5 rounded-lg"><ArrowLeft className="w-5 h-5 text-zinc-400" /></button>
-          <MessageCircle className="w-5 h-5 text-blue-400" />
-          <h2 className="text-white font-bold">{selectedRoom.name}</h2>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {messages.length === 0 && <p className="text-center text-zinc-600 text-sm py-8">Nenhuma mensagem ainda. Seja o primeiro!</p>}
-          {messages.map((msg: any) => (
-            <div key={msg.id} className={`flex ${msg.user_id === userId ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${msg.user_id === userId ? 'bg-red-900/30 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
-                {msg.user_id !== userId && <p className="text-xs text-zinc-500 font-bold mb-1">{msg.user_name}</p>}
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          <div ref={chatEndRef} />
-        </div>
-        <div className="p-3 border-t border-zinc-800">
-          <div className="flex gap-2">
-            <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Digite sua mensagem..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-red-600" />
-            <button onClick={handleSendMessage} className="p-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl transition-colors"><Send className="w-4 h-4" /></button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
@@ -394,7 +441,7 @@ const CoworkingView = ({ userId, userName }: { userId: string; userName: string 
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {rooms.map((room) => (
-            <div key={room.id} className="bg-black/20 border border-white/5 rounded-2xl p-5 sm:p-6 hover:border-red-900/30 transition-all group">
+            <div key={room.id} className={cn("bg-black/20 border rounded-2xl p-5 sm:p-6 hover:border-red-900/30 transition-all group", activeRoom?.id === room.id ? "border-red-600/50" : "border-white/5")}>
               <div className="flex items-center gap-3 mb-3">
                 {room.room_type === 'chat' ? <MessageCircle className="w-5 h-5 text-blue-400" /> : <Phone className="w-5 h-5 text-emerald-400" />}
                 <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">{room.room_type === 'chat' ? 'Bate-papo' : 'Chamada'}</span>
@@ -404,8 +451,8 @@ const CoworkingView = ({ userId, userName }: { userId: string; userName: string 
               <p className="text-zinc-600 text-xs mb-4">Criado por: {room.created_by === userId ? 'Você' : 'Outro operador'}</p>
               <div className="flex gap-2">
                 {room.room_type === 'chat' ? (
-                  <button onClick={() => setSelectedRoom(room)} className="flex-1 py-2 bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2">
-                    <MessageCircle className="w-4 h-4" /> Entrar
+                  <button onClick={() => setActiveRoom(activeRoom?.id === room.id ? null : room)} className={cn("flex-1 py-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2", activeRoom?.id === room.id ? "bg-red-900 text-white" : "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400")}>
+                    <MessageCircle className="w-4 h-4" /> {activeRoom?.id === room.id ? 'Ativo' : 'Entrar'}
                   </button>
                 ) : (
                   <a href={room.meet_link || '#'} target="_blank" rel="noopener noreferrer"
@@ -425,6 +472,76 @@ const CoworkingView = ({ userId, userName }: { userId: string; userName: string 
   );
 };
 
+// --- Persistent Chat Overlay ---
+const ChatOverlay = ({ room, userId, userName, userAvatar, onClose }: { room: any; userId: string; userName: string; userAvatar?: string; onClose: () => void }) => {
+  const { messages, sendMessage } = useCoworkingMessages(room.id);
+  const [chatInput, setChatInput] = useState('');
+  const [replyTo, setReplyTo] = useState<any>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const handleSend = async () => {
+    if (!chatInput.trim()) return;
+    await sendMessage(userId, userName, chatInput.trim(), userAvatar, replyTo?.id);
+    setChatInput('');
+    setReplyTo(null);
+  };
+
+  return (
+    <div className="fixed bottom-4 right-4 z-40 w-[340px] sm:w-[400px] h-[500px] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-3 bg-zinc-900/50">
+        <MessageCircle className="w-5 h-5 text-blue-400" />
+        <h3 className="text-white font-bold text-sm flex-1 truncate">{room.name}</h3>
+        <button onClick={onClose} className="px-3 py-1 bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-lg text-xs font-bold transition-colors">Sair</button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {messages.length === 0 && <p className="text-center text-zinc-600 text-sm py-8">Nenhuma mensagem ainda. Seja o primeiro!</p>}
+        {messages.map((msg: any) => {
+          const replyMsg = msg.reply_to ? messages.find((m: any) => m.id === msg.reply_to) : null;
+          return (
+            <div key={msg.id} className={`flex ${msg.user_id === userId ? 'justify-end' : 'justify-start'} group`}>
+              <div className="max-w-[85%]">
+                {replyMsg && (
+                  <div className="text-[10px] text-zinc-600 bg-zinc-900/50 px-2 py-1 rounded-t-lg border-l-2 border-zinc-700 mb-0.5 truncate">
+                    ↳ {replyMsg.user_name}: {replyMsg.content?.slice(0, 40)}...
+                  </div>
+                )}
+                <div className={`px-3 py-2 rounded-xl text-sm ${msg.user_id === userId ? 'bg-red-900/30 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
+                  {msg.user_id !== userId && (
+                    <div className="flex items-center gap-2 mb-1">
+                      {msg.avatar_url && <img src={msg.avatar_url} alt="" className="w-4 h-4 rounded-full object-cover" />}
+                      <p className="text-xs text-zinc-500 font-bold">{msg.user_name}</p>
+                    </div>
+                  )}
+                  {msg.content}
+                </div>
+                <button onClick={() => setReplyTo(msg)} className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-600 hover:text-zinc-400 transition-all mt-0.5">
+                  <Reply className="w-3 h-3 inline mr-1" />Responder
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={chatEndRef} />
+      </div>
+      {replyTo && (
+        <div className="px-3 py-2 border-t border-zinc-800 bg-zinc-900/50 flex items-center gap-2">
+          <span className="text-xs text-zinc-500 flex-1 truncate">Respondendo a <span className="text-white font-bold">{replyTo.user_name}</span>: {replyTo.content?.slice(0, 30)}...</span>
+          <button onClick={() => setReplyTo(null)} className="text-zinc-500 hover:text-white"><X className="w-3 h-3" /></button>
+        </div>
+      )}
+      <div className="p-3 border-t border-zinc-800">
+        <div className="flex gap-2">
+          <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="Digite sua mensagem..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-red-600" />
+          <button onClick={handleSend} className="p-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl transition-colors"><Send className="w-4 h-4" /></button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Laboratory View ---
 const LaboratoryView = ({ userId }: { userId: string }) => {
   const { projects, loading, addProject, updateProject, removeProject } = useProjects(userId);
@@ -434,7 +551,6 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
   const [desc, setDesc] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
-  // Brainstorm
   const [brainstormInput, setBrainstormInput] = useState('');
   const [brainstormResult, setBrainstormResult] = useState('');
   const [brainstormLoading, setBrainstormLoading] = useState(false);
@@ -473,13 +589,12 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
           try { const p = JSON.parse(json); const c = p.choices?.[0]?.delta?.content; if (c) { result += c; setBrainstormResult(result); } } catch {}
         }
       }
-    } catch (e) { setBrainstormResult('Erro ao gerar brainstorming. Tente novamente.'); }
+    } catch { setBrainstormResult('Erro ao gerar brainstorming. Tente novamente.'); }
     setBrainstormLoading(false);
   };
 
   if (loading) return <div className="h-full flex items-center justify-center"><Loader2 className="w-12 h-12 text-red-600 animate-spin" /></div>;
 
-  // Editing a project (Notion-like)
   if (editingId) {
     const project = projects.find(p => p.id === editingId);
     return (
@@ -499,8 +614,6 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
     <div className="p-4 sm:p-6 lg:p-12 overflow-y-auto h-full">
       <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Laboratório</h1>
       <p className="text-zinc-500 font-medium mb-6 text-sm sm:text-base">Área de construção e brainstorming.</p>
-
-      {/* Tabs */}
       <div className="flex gap-2 mb-8">
         <button onClick={() => setTab('projects')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2", tab === 'projects' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>
           <Atom className="w-4 h-4" /> Projetos
@@ -509,13 +622,10 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
           <Lightbulb className="w-4 h-4" /> Brainstorming IA
         </button>
       </div>
-
       {tab === 'projects' ? (
         <>
           <div className="flex justify-end mb-6">
-            <button onClick={() => setShowCreate(true)} className="px-5 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2 shrink-0">
-              <Plus className="w-4 h-4" /> NOVO PROJETO
-            </button>
+            <button onClick={() => setShowCreate(true)} className="px-5 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2 shrink-0"><Plus className="w-4 h-4" /> NOVO PROJETO</button>
           </div>
           <AnimatePresence>
             {showCreate && (
@@ -540,9 +650,7 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
                   <h3 className="text-lg font-bold text-white mb-2">{p.title}</h3>
                   {p.description && <p className="text-zinc-500 text-sm mb-4 line-clamp-3">{p.description}</p>}
                   <div className="flex gap-2">
-                    <button onClick={() => { setEditingId(p.id); setEditContent(p.description || ''); }} className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2">
-                      <Edit3 className="w-3.5 h-3.5" /> Editar
-                    </button>
+                    <button onClick={() => { setEditingId(p.id); setEditContent(p.description || ''); }} className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"><Edit3 className="w-3.5 h-3.5" /> Editar</button>
                     <button onClick={() => removeProject(p.id)} className="px-3 py-2 bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
@@ -572,7 +680,7 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
   );
 };
 
-// --- Library View ---
+// --- Library View (with upload) ---
 const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
   const [section, setSection] = useState<'aulas' | 'livros'>('aulas');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -581,13 +689,26 @@ const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newUrl, setNewUrl] = useState('');
+  const [addMode, setAddMode] = useState<'url' | 'upload'>('url');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const categories = section === 'aulas' ? AULAS_CATEGORIES : LIVROS_CATEGORIES;
 
   const handleAdd = async () => {
     if (!newTitle.trim() || !selectedCategory) return;
-    await addContent({ category_id: selectedCategory, title: newTitle.trim(), description: newDesc.trim(), content_url: newUrl.trim() });
-    setNewTitle(''); setNewDesc(''); setNewUrl(''); setShowAdd(false);
+    let finalUrl = newUrl.trim();
+    if (addMode === 'upload' && uploadFile) {
+      setUploading(true);
+      const filePath = `${selectedCategory}/${Date.now()}_${uploadFile.name}`;
+      const { error } = await supabase.storage.from('library').upload(filePath, uploadFile);
+      if (error) { toast.error('Erro ao enviar arquivo'); setUploading(false); return; }
+      const { data: { publicUrl } } = supabase.storage.from('library').getPublicUrl(filePath);
+      finalUrl = publicUrl;
+      setUploading(false);
+    }
+    await addContent({ category_id: selectedCategory, title: newTitle.trim(), description: newDesc.trim(), content_url: finalUrl });
+    setNewTitle(''); setNewDesc(''); setNewUrl(''); setUploadFile(null); setShowAdd(false);
   };
 
   if (selectedCategory) {
@@ -605,9 +726,29 @@ const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
               <div className="space-y-3">
                 <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Título..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" autoFocus />
                 <textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Descrição..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 h-20 resize-none" />
-                <input type="url" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="URL do conteúdo (opcional)..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" />
                 <div className="flex gap-2">
-                  <button onClick={handleAdd} className="flex-1 py-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors">ADICIONAR</button>
+                  <button onClick={() => setAddMode('url')} className={cn("flex-1 py-2 rounded-lg font-semibold text-sm", addMode === 'url' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400")}>
+                    <ExternalLink className="w-4 h-4 inline mr-1" /> Por URL
+                  </button>
+                  <button onClick={() => setAddMode('upload')} className={cn("flex-1 py-2 rounded-lg font-semibold text-sm", addMode === 'upload' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400")}>
+                    <Upload className="w-4 h-4 inline mr-1" /> Upload
+                  </button>
+                </div>
+                {addMode === 'url' ? (
+                  <input type="url" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="URL do conteúdo..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" />
+                ) : (
+                  <div className="border-2 border-dashed border-zinc-700 rounded-xl p-4 text-center">
+                    <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="hidden" id="library-upload" accept=".pdf,.doc,.docx,.mp4,.mp3,.png,.jpg,.jpeg" />
+                    <label htmlFor="library-upload" className="cursor-pointer text-zinc-400 hover:text-white transition-colors">
+                      <Upload className="w-8 h-8 mx-auto mb-2" />
+                      <p className="text-sm font-medium">{uploadFile ? uploadFile.name : 'Clique para selecionar arquivo'}</p>
+                    </label>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={handleAdd} disabled={uploading} className="flex-1 py-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                    {uploading && <Loader2 className="w-4 h-4 animate-spin" />} ADICIONAR
+                  </button>
                   <button onClick={() => setShowAdd(false)} className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors">CANCELAR</button>
                 </div>
               </div>
@@ -637,7 +778,6 @@ const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
     <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
       <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Biblioteca Estratégica</h1>
       <p className="text-zinc-500 font-medium mb-6 text-sm sm:text-base">Conteúdo operacional. Consuma e execute.</p>
-      {/* Section tabs */}
       <div className="flex gap-2 mb-8">
         <button onClick={() => setSection('aulas')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2", section === 'aulas' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>
           <GraduationCap className="w-4 h-4" /> Aulas
@@ -659,12 +799,73 @@ const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
   );
 };
 
+// --- AI Analysis Helper ---
+const AIAnalysisButton = ({ prompt, label }: { prompt: string; label: string }) => {
+  const [result, setResult] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const analyze = async () => {
+    setOpen(true);
+    setLoading(true);
+    setResult('');
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
+      });
+      if (!resp.ok || !resp.body) throw new Error('Erro');
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '', res = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n')) !== -1) {
+          let line = buf.slice(0, idx); buf = buf.slice(idx + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ') || line.trim() === '') continue;
+          const json = line.slice(6).trim();
+          if (json === '[DONE]') break;
+          try { const p = JSON.parse(json); const c = p.choices?.[0]?.delta?.content; if (c) { res += c; setResult(res); } } catch {}
+        }
+      }
+    } catch { setResult('Erro ao analisar. Tente novamente.'); }
+    setLoading(false);
+  };
+
+  return (
+    <>
+      <button onClick={analyze} className="px-4 py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 border border-red-900/30">
+        <Brain className="w-3.5 h-3.5" /> {label}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4 bg-black/30 border border-red-900/20 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-bold text-red-400 flex items-center gap-2"><Brain className="w-4 h-4" /> Análise IA</h4>
+              <button onClick={() => setOpen(false)} className="text-zinc-600 hover:text-white"><X className="w-4 h-4" /></button>
+            </div>
+            {loading && !result && <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 text-red-500 animate-spin" /><span className="text-zinc-500 text-xs">Analisando...</span></div>}
+            {result && <div className="text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">{result}</div>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
+
 // --- Main App ---
 export default function FocusLabApp() {
   const { user, loading: authLoading, signOut } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>('command_center');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('focuslab-theme') !== 'light');
+  const [chatbotOpen, setChatbotOpen] = useState(false);
+  const [activeCoworkingRoom, setActiveCoworkingRoom] = useState<any>(null);
 
   const userId = user?.id;
   const { tasks: redTasks, loading: redLoading, addTask, toggleTask, removeTask, updateTask } = useRedTasks(userId);
@@ -676,13 +877,12 @@ export default function FocusLabApp() {
   if (authLoading) {
     return (
       <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center">
-        <Toaster position="top-center" theme="dark" />
         <div className="text-center"><Loader2 className="w-16 h-16 text-red-600 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Carregando sistema...</p></div>
       </div>
     );
   }
 
-  if (!user) return <><Toaster position="top-center" theme="dark" /><AuthScreen /></>;
+  if (!user) return <><AuthScreen /></>;
 
   const lifeAreasData = (() => {
     const scores = { Mente: 0, Corpo: 0, Carreira: 0, Espírito: 0, Social: 0, Finanças: 0 };
@@ -703,15 +903,35 @@ export default function FocusLabApp() {
 
   const renderView = () => {
     switch (currentView) {
-      case 'red': return <RedViewReal tasks={redTasks} tasksLoading={redLoading} addTask={addTask} toggleTask={toggleTask} removeTask={removeTask} updateTask={updateTask} objective={objective} objectiveLoading={objLoading} updateObjective={updateObjective} createObjective={createObjective} userId={userId || null} />;
+      case 'red': return (
+        <div className="h-full overflow-y-auto">
+          <RedViewReal tasks={redTasks} tasksLoading={redLoading} addTask={addTask} toggleTask={toggleTask} removeTask={removeTask} updateTask={updateTask} objective={objective} objectiveLoading={objLoading} updateObjective={updateObjective} createObjective={createObjective} userId={userId || null} />
+          <div className="px-4 sm:px-6 lg:px-12 pb-8">
+            <AIAnalysisButton
+              label="Análise IA do R.E.D."
+              prompt={`Analise minha Rotina Essencial Diária (R.E.D.) e dê sugestões de melhoria. Tarefas: ${redTasks.map(t => `${t.text} (${t.category}, ${t.completed ? 'concluída' : 'pendente'})`).join('; ')}. Total: ${redTasks.filter(t => t.completed).length}/${redTasks.length} concluídas.`}
+            />
+          </div>
+        </div>
+      );
       case 'settings': return <SettingsView userId={userId} darkMode={darkMode} setDarkMode={setDarkMode} />;
       case 'journey': return <JourneyView redTasks={redTasks} challengeProgress={challengeProgress} />;
       case 'decoupling': return <DecouplingView />;
       case 'tasks': return <TasksView userId={userId!} />;
-      case 'coworking': return <CoworkingView userId={userId!} userName={profile?.display_name || user?.user_metadata?.name || 'Operador'} />;
+      case 'coworking': return <CoworkingView userId={userId!} userName={profile?.display_name || user?.user_metadata?.name || 'Operador'} userAvatar={profile?.avatar_url} activeRoom={activeCoworkingRoom} setActiveRoom={setActiveCoworkingRoom} />;
       case 'journal': return <JournalView userId={userId!} />;
       case 'laboratory': return <LaboratoryView userId={userId!} />;
       case 'library': return <LibraryView isAdmin={isAdmin} />;
+      case 'chatbot': return (
+        <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto flex flex-col items-center justify-center">
+          <Bot className="w-16 h-16 text-red-500 mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Assistente IA</h2>
+          <p className="text-zinc-500 text-sm mb-6 text-center max-w-md">O assistente de desenvolvimento pessoal do FocusLab está disponível no painel ao lado.</p>
+          <button onClick={() => setChatbotOpen(true)} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors flex items-center gap-2">
+            <Bot className="w-5 h-5" /> Abrir Chat
+          </button>
+        </div>
+      );
       case 'challenges': return (
         <div className="p-4 sm:p-6 lg:p-12 overflow-y-auto h-full">
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Desafios</h1>
@@ -791,7 +1011,7 @@ export default function FocusLabApp() {
                   <p className="text-2xl sm:text-3xl font-bold text-red-500">{completionPct + activeChals * 10}</p>
                 </div>
               </div>
-              <div className="bg-black/20 rounded-2xl p-5 sm:p-8 border border-white/5 backdrop-blur-sm">
+              <div className="bg-black/20 rounded-2xl p-5 sm:p-8 border border-white/5 backdrop-blur-sm mb-6">
                 <h3 className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-6">Performance Semanal</h3>
                 <div className="space-y-4">
                   {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((day, i) => {
@@ -808,6 +1028,10 @@ export default function FocusLabApp() {
                   })}
                 </div>
               </div>
+              <AIAnalysisButton
+                label="Análise IA das Metas"
+                prompt={`Analise minha performance semanal no FocusLab. RED completado hoje: ${completionPct}%. Tarefas: ${completedToday}/${totalToday}. Desafios ativos: ${activeChals}. Score: ${completionPct + activeChals * 10}. Dê sugestões para melhorar minha consistência semanal.`}
+              />
             </div>
           </div>
         );
@@ -871,16 +1095,24 @@ export default function FocusLabApp() {
 
   return (
     <div className={cn("h-screen w-screen bg-zinc-950 text-white flex overflow-hidden", !darkMode && "light-theme")}>
-      <Toaster position="top-center" theme="dark" />
       {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-zinc-950/90 backdrop-blur-md border-b border-white/5 px-4 py-3 flex items-center gap-3">
         <button onClick={() => setMobileMenuOpen(true)} className="p-1.5 hover:bg-white/5 rounded-lg"><Menu className="w-6 h-6 text-zinc-400" /></button>
         <img src={focusLabLogo} alt="FocusLab" className="w-6 h-6" />
         <span className="text-sm font-bold text-white tracking-wider uppercase">Focus Lab</span>
       </div>
-      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} />
+      <Sidebar currentView={currentView} setView={(v) => { setCurrentView(v); if (v === 'chatbot') setChatbotOpen(true); }} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} />
       <main className="flex-1 overflow-hidden min-w-0 md:mt-0 mt-14">{renderView()}</main>
-      <ChatbotPanel />
+      
+      {/* Persistent chat overlay for coworking */}
+      {activeCoworkingRoom && activeCoworkingRoom.room_type === 'chat' && (
+        <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} />
+      )}
+      
+      {/* Chatbot panel */}
+      <AnimatePresence>
+        {chatbotOpen && !activeCoworkingRoom && <ChatbotPanel open={chatbotOpen} setOpen={setChatbotOpen} />}
+      </AnimatePresence>
     </div>
   );
 }
