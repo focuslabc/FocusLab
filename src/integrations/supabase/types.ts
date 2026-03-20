@@ -55,30 +55,43 @@ export type Database = {
       }
       coworking_messages: {
         Row: {
+          avatar_url: string | null
           content: string
           created_at: string
           id: string
+          reply_to: string | null
           room_id: string
           user_id: string
           user_name: string
         }
         Insert: {
+          avatar_url?: string | null
           content: string
           created_at?: string
           id?: string
+          reply_to?: string | null
           room_id: string
           user_id: string
           user_name?: string
         }
         Update: {
+          avatar_url?: string | null
           content?: string
           created_at?: string
           id?: string
+          reply_to?: string | null
           room_id?: string
           user_id?: string
           user_name?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "coworking_messages_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "coworking_messages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "coworking_messages_room_id_fkey"
             columns: ["room_id"]
@@ -256,6 +269,7 @@ export type Database = {
           id: string
           updated_at: string
           user_id: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -265,6 +279,7 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -274,6 +289,7 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -366,6 +382,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_username: { Args: { name: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
