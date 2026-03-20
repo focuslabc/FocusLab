@@ -161,11 +161,9 @@ export function useChallengeProgress(userId: string | undefined) {
     const item = progress.find(p => p.id === id);
     if (!item) return;
     if (item.paused_at) {
-      // Resume
       const { error } = await supabase.from('challenge_progress').update({ paused_at: null }).eq('id', id);
       if (error) toast.error('Erro'); else { toast.success('Desafio retomado!'); await fetchProgress(); }
     } else {
-      // Pause
       const { error } = await supabase.from('challenge_progress').update({ paused_at: new Date().toISOString() }).eq('id', id);
       if (error) toast.error('Erro'); else { toast.success('Desafio pausado'); await fetchProgress(); }
     }
@@ -232,8 +230,13 @@ export function useProfile(userId: string | undefined) {
   const updateProfile = useCallback(async (updates: any) => {
     if (!profile) return;
     const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id);
-    if (error) toast.error('Erro ao atualizar perfil');
-    else { toast.success('Perfil atualizado'); await fetchProfile(); }
+    if (error) {
+      if (error.code === '23505' && error.message?.includes('username')) {
+        toast.error('Este @username já está em uso. Escolha outro.');
+      } else {
+        toast.error('Erro ao atualizar perfil');
+      }
+    } else { toast.success('Perfil atualizado'); await fetchProfile(); }
   }, [profile, fetchProfile]);
 
   const uploadAvatar = useCallback(async (file: File) => {
@@ -344,7 +347,7 @@ export function useCoworkingRooms(userId: string | undefined) {
   return { rooms, loading, createRoom, deleteRoom };
 }
 
-// ---- Coworking Messages (realtime) ----
+// ---- Coworking Messages (realtime with optimistic updates) ----
 export function useCoworkingMessages(roomId: string | null) {
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -362,16 +365,29 @@ export function useCoworkingMessages(roomId: string | null) {
 
     const channel = supabase.channel(`room-${roomId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'coworking_messages', filter: `room_id=eq.${roomId}` },
-        (payload) => { setMessages(prev => [...prev, payload.new]); })
+        (payload) => { 
+          setMessages(prev => {
+            // Avoid duplicate from optimistic update
+            if (prev.some(m => m.id === payload.new.id)) return prev;
+            // Remove optimistic message if it matches
+            const filtered = prev.filter(m => !m._optimistic || m.content !== (payload.new as any).content || m.user_id !== (payload.new as any).user_id);
+            return [...filtered, payload.new];
+          });
+        })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [roomId]);
 
-  const sendMessage = useCallback(async (userId: string, userName: string, content: string) => {
+  const sendMessage = useCallback(async (userId: string, userName: string, content: string, avatarUrl?: string, replyTo?: string) => {
     if (!roomId) return;
-    const { error } = await supabase.from('coworking_messages').insert({ room_id: roomId, user_id: userId, user_name: userName, content });
-    if (error) toast.error('Erro ao enviar mensagem');
+    // Optimistic update
+    const optimisticMsg = { id: `temp-${Date.now()}`, room_id: roomId, user_id: userId, user_name: userName, content, avatar_url: avatarUrl || null, reply_to: replyTo || null, created_at: new Date().toISOString(), _optimistic: true };
+    setMessages(prev => [...prev, optimisticMsg]);
+    const insertData: any = { room_id: roomId, user_id: userId, user_name: userName, content, avatar_url: avatarUrl || null };
+    if (replyTo) insertData.reply_to = replyTo;
+    const { error } = await supabase.from('coworking_messages').insert(insertData);
+    if (error) { toast.error('Erro ao enviar mensagem'); setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id)); }
   }, [roomId]);
 
   return { messages, loading, sendMessage };
@@ -386,4 +402,10 @@ export function usePublicProfile(userId: string | undefined) {
       .then(({ data }) => setProfile(data));
   }, [userId]);
   return profile;
+}
+
+// ---- Check username availability ----
+export async function checkUsernameAvailable(username: string): Promise<boolean> {
+  const { data } = await supabase.from('profiles').select('id').eq('username', username).maybeSingle();
+  return !data;
 }
