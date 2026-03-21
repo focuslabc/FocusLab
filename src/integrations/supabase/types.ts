@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      addiction_daily_logs: {
+        Row: {
+          craving_level: number | null
+          created_at: string
+          did_new_routine: boolean | null
+          did_old_routine: boolean | null
+          habit_id: string
+          id: string
+          log_date: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          craving_level?: number | null
+          created_at?: string
+          did_new_routine?: boolean | null
+          did_old_routine?: boolean | null
+          habit_id: string
+          id?: string
+          log_date?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          craving_level?: number | null
+          created_at?: string
+          did_new_routine?: boolean | null
+          did_old_routine?: boolean | null
+          habit_id?: string
+          id?: string
+          log_date?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "addiction_daily_logs_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "addiction_habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      addiction_habits: {
+        Row: {
+          created_at: string
+          cue: string | null
+          description: string | null
+          frequency: string | null
+          id: string
+          is_active: boolean
+          name: string
+          new_routine: string | null
+          reward: string | null
+          routine: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          cue?: string | null
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          new_routine?: string | null
+          reward?: string | null
+          routine?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          cue?: string | null
+          description?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          new_routine?: string | null
+          reward?: string | null
+          routine?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       challenge_progress: {
         Row: {
           challenge_id: number
@@ -133,6 +222,60 @@ export type Database = {
           meet_link?: string | null
           name?: string
           room_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      daily_streaks: {
+        Row: {
+          created_at: string
+          id: string
+          red_completed: number
+          red_total: number
+          streak_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          red_completed?: number
+          red_total?: number
+          streak_date?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          red_completed?: number
+          red_total?: number
+          streak_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      friendships: {
+        Row: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          addressee_id: string
+          created_at?: string
+          id?: string
+          requester_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          addressee_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -260,6 +403,33 @@ export type Database = {
         }
         Relationships: []
       }
+      private_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          read: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          receiver_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -267,6 +437,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          onboarding_completed: boolean | null
           updated_at: string
           user_id: string
           username: string | null
@@ -277,6 +448,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          onboarding_completed?: boolean | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -287,6 +459,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          onboarding_completed?: boolean | null
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -382,7 +555,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_username_available: { Args: { uname: string }; Returns: boolean }
       generate_username: { Args: { name: string }; Returns: string }
+      get_user_streak: { Args: { uid: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
