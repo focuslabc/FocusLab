@@ -3,17 +3,22 @@ import { motion, AnimatePresence } from 'motion/react';
 import { SettingsView } from './SettingsView';
 import { RedViewReal } from './RedViewReal';
 import { CustomRadarChart } from './CustomRadarChart';
-import { JourneyView } from './JourneyView';
+import { JourneyView, getJourneyLevel } from './JourneyView';
 import { ChatbotPanel } from './ChatbotPanel';
+import { FriLabsView } from './FriLabsView';
+import { AddictionView } from './AddictionView';
+import { OnboardingTour } from './OnboardingTour';
+import { ShareableStats } from './ShareableStats';
+import { UserProfileModal } from './UserProfileModal';
 import { useAuth } from '@/hooks/useAuth';
-import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries, useProjects, useLibraryContent, useCoworkingRooms, useIsAdmin, useProfile, useCoworkingMessages, checkUsernameAvailable } from '@/hooks/useSupabaseData';
+import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries, useProjects, useLibraryContent, useCoworkingRooms, useIsAdmin, useProfile, useCoworkingMessages, useDailyStreaks, useFriendships, checkUsernameAvailable } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 import focusLabLogo from '@/assets/focuslab-logo.png';
 import {
   LayoutDashboard, Atom, Activity, Target, BarChart3, Settings, Check, Play, ArrowRight,
   Brain, Dumbbell, BookOpen, Plus, Lock, Flame, Droplets, Smartphone, Clock,
   X, Zap, Users, Map, Shield, Video, FileText, Calendar, Trash2, Save, LogOut, Wind, Loader2,
-  MessageCircle, Phone, ArrowLeft, Menu, Send, Pause, Square, ExternalLink, GraduationCap, BookMarked, Lightbulb, Edit3, Bot, Upload, Reply
+  MessageCircle, Phone, ArrowLeft, Menu, Send, Pause, Square, ExternalLink, GraduationCap, BookMarked, Lightbulb, Edit3, Bot, Upload, Reply, Heart
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -21,7 +26,7 @@ import { toast } from 'sonner';
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
-type ViewState = 'command_center' | 'red' | 'tasks' | 'challenges' | 'weekly_goals' | 'laboratory' | 'journal' | 'library' | 'journey' | 'coworking' | 'settings' | 'decoupling' | 'chatbot';
+type ViewState = 'command_center' | 'red' | 'tasks' | 'challenges' | 'weekly_goals' | 'laboratory' | 'journal' | 'library' | 'journey' | 'coworking' | 'settings' | 'decoupling' | 'chatbot' | 'frilabs' | 'addiction';
 
 const SYSTEM_CHALLENGES = [
   { id: 1, title: 'Jejum de Dopamina', icon: Brain, duration: '7 dias', days: 7, desc: 'Reduza estímulos artificiais para recuperar a sensibilidade dos receptores.' },
@@ -37,7 +42,6 @@ const AULAS_CATEGORIES = [
   { id: 'aula_dopamine', title: 'Dopamina e Motivação', icon: Brain, desc: 'Regulação de neuroquímica e gestão de esforço.' },
   { id: 'aula_discipline', title: 'Disciplina e Consistência', icon: Dumbbell, desc: 'Construção de identidade e manutenção de longo prazo.' },
 ];
-
 const LIVROS_CATEGORIES = [
   { id: 'livro_productivity', title: 'Produtividade', icon: Target, desc: 'Livros sobre gestão de tempo e eficiência.' },
   { id: 'livro_mindset', title: 'Mentalidade', icon: Brain, desc: 'Desenvolvimento de mindset de crescimento.' },
@@ -84,7 +88,7 @@ const AuthScreen = () => {
         if (usernameAvail === false) { toast.error('Este @username já está em uso'); setIsLoading(false); return; }
         const { error } = await signUp(email, password, name, username);
         if (error) { toast.error(error.message || 'Erro ao cadastrar'); setIsLoading(false); }
-        else { toast.success('Conta criada! Verifique seu e-mail para confirmar.'); setIsLoading(false); }
+        else { toast.success('Conta criada com sucesso!'); setIsLoading(false); }
       }
     } catch { setIsLoading(false); }
   };
@@ -117,21 +121,17 @@ const AuthScreen = () => {
                 {mode === 'signup' && (
                   <>
                     <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Nome</label>
-                      <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="Seu nome completo" /></div>
+                      <input type="text" required value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="Seu nome completo" /></div>
                     <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">@Username</label>
-                      <input type="text" required value={username} onChange={(e) => handleUsernameChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="seu.usuario" minLength={3} />
-                      {username.length >= 3 && usernameAvail !== null && (
-                        <p className={`text-xs mt-1 ${usernameAvail ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {usernameAvail ? '✓ Username disponível' : '✗ Username já em uso'}
-                        </p>
-                      )}
+                      <input type="text" required value={username} onChange={e => handleUsernameChange(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="seu.usuario" minLength={3} />
+                      {username.length >= 3 && usernameAvail !== null && <p className={`text-xs mt-1 ${usernameAvail ? 'text-emerald-400' : 'text-red-400'}`}>{usernameAvail ? '✓ Username disponível' : '✗ Username já em uso'}</p>}
                     </div>
                   </>
                 )}
                 <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">E-mail</label>
-                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="exemplo@email.com" /></div>
+                  <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="exemplo@email.com" /></div>
                 <div><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Senha</label>
-                  <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="••••••••" /></div>
+                  <input type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 transition-all" placeholder="••••••••" /></div>
                 <button type="submit" disabled={isLoading} className="w-full py-4 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-lg transition-all shadow-lg shadow-red-900/20 mt-4 disabled:opacity-50 flex items-center justify-center gap-2">
                   {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
                   {mode === 'login' ? 'AUTENTICAR' : 'CADASTRAR'}
@@ -159,43 +159,40 @@ const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, pr
     { id: 'decoupling', icon: Wind, label: 'Desacoplamento' },
     { id: 'tasks', icon: Check, label: 'Tarefas Gerais' },
     { id: 'challenges', icon: Flame, label: 'Desafios' },
+    { id: 'addiction', icon: Shield, label: 'Vício Controlado' },
     { id: 'weekly_goals', icon: BarChart3, label: 'Metas Semanais' },
     { id: 'laboratory', icon: Atom, label: 'Laboratório' },
     { id: 'library', icon: BookOpen, label: 'Biblioteca' },
     { id: 'journey', icon: Map, label: 'Modo Jornada' },
     { id: 'coworking', icon: Users, label: 'Co-working' },
+    { id: 'frilabs', icon: Heart, label: 'FriLabs' },
     { id: 'chatbot', icon: Bot, label: 'Assistente IA' },
   ];
 
   const sidebarContent = (
     <>
       <div className="p-4 lg:p-6 flex items-center gap-3 mb-2">
-        {profile?.avatar_url ? (
-          <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-        ) : (
-          <img src={focusLabLogo} alt="FocusLab" className="w-8 h-8 flex-shrink-0" />
-        )}
+        {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <img src={focusLabLogo} alt="FocusLab" className="w-8 h-8 flex-shrink-0" />}
         <span className="text-sm font-bold tracking-[0.2em] uppercase text-white truncate">{profile?.display_name || 'Focus Lab'}</span>
       </div>
       <nav className="flex-1 px-2 lg:px-4 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => (
+        {menuItems.map(item => (
           <button key={item.id} onClick={() => { setView(item.id as ViewState); setMobileOpen(false); }}
-            className={cn("w-full flex items-center gap-4 p-3 lg:p-4 rounded-xl transition-all group relative overflow-hidden",
-              currentView === item.id ? "bg-red-900/20 text-white border border-red-600/20 shadow-[0_0_15px_rgba(185,28,28,0.1)]" : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5")}>
-            {currentView === item.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600 shadow-[0_0_10px_#dc2626]" />}
-            <item.icon className={cn("w-5 h-5 flex-shrink-0 transition-colors", currentView === item.id ? "text-red-600" : "group-hover:text-red-500")} />
-            <span className="text-sm font-semibold tracking-wide text-left truncate">{item.label}</span>
+            className={cn("w-full flex items-center gap-3 p-3 rounded-xl transition-all group relative overflow-hidden",
+              currentView === item.id ? "bg-red-900/20 text-white border border-red-600/20" : "text-zinc-500 hover:text-zinc-200 hover:bg-white/5")}>
+            {currentView === item.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600" />}
+            <item.icon className={cn("w-4 h-4 flex-shrink-0", currentView === item.id ? "text-red-600" : "group-hover:text-red-500")} />
+            <span className="text-xs font-semibold tracking-wide text-left truncate">{item.label}</span>
           </button>
         ))}
       </nav>
       <div className="p-4 lg:p-6 border-t border-white/5 space-y-1">
-        <button onClick={() => { setView('settings'); setMobileOpen(false); }} className={cn("w-full flex items-center gap-4 p-3 rounded-lg transition-all",
+        <button onClick={() => { setView('settings'); setMobileOpen(false); }} className={cn("w-full flex items-center gap-3 p-3 rounded-lg transition-all",
           currentView === 'settings' ? "bg-red-900/20 text-white border border-red-600/20" : "text-zinc-600 hover:text-zinc-300 hover:bg-white/5")}>
-          <Settings className={cn("w-5 h-5 transition-colors", currentView === 'settings' ? "text-red-500" : "")} />
-          <span className="text-sm font-medium">Configurações</span>
+          <Settings className={cn("w-4 h-4", currentView === 'settings' ? "text-red-500" : "")} /><span className="text-xs font-medium">Configurações</span>
         </button>
-        <button onClick={onLogout} className="w-full flex items-center gap-4 p-3 rounded-lg transition-all text-zinc-600 hover:text-red-500 hover:bg-red-900/10">
-          <LogOut className="w-5 h-5 transition-colors" /><span className="text-sm font-medium">Sair</span>
+        <button onClick={onLogout} className="w-full flex items-center gap-3 p-3 rounded-lg transition-all text-zinc-600 hover:text-red-500 hover:bg-red-900/10">
+          <LogOut className="w-4 h-4" /><span className="text-xs font-medium">Sair</span>
         </button>
       </div>
     </>
@@ -203,9 +200,7 @@ const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, pr
 
   return (
     <>
-      <div className="hidden md:flex w-64 h-full bg-black/40 backdrop-blur-xl border-r border-white/5 flex-col flex-shrink-0 z-20 shadow-2xl">
-        {sidebarContent}
-      </div>
+      <div className="hidden md:flex w-60 h-full bg-black/40 backdrop-blur-xl border-r border-white/5 flex-col flex-shrink-0 z-20 shadow-2xl">{sidebarContent}</div>
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -227,8 +222,7 @@ const DecouplingView = () => {
   const [activeProtocol, setActiveProtocol] = useState<string | null>(null);
   return (
     <div className="h-full w-full bg-gradient-to-b from-zinc-950 to-blue-950/20 p-4 sm:p-6 lg:p-12 overflow-y-auto flex flex-col">
-      <header className="mb-8"><h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2 flex items-center gap-3"><Wind className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" /> Estação de Desacoplamento</h1>
-        <p className="text-zinc-400 font-medium text-sm sm:text-base">Protocolos curtos para momentos de estresse.</p></header>
+      <header className="mb-8"><h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2 flex items-center gap-3"><Wind className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" /> Estação de Desacoplamento</h1><p className="text-zinc-400 font-medium text-sm sm:text-base">Protocolos curtos para momentos de estresse.</p></header>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 flex-1">
         {[
           { id: 'box', title: 'Respiração Box (4-4-4-4)', desc: 'Regulação do sistema nervoso. 2 minutos.', icon: Wind },
@@ -245,9 +239,7 @@ const DecouplingView = () => {
         {activeProtocol && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
             <div className="text-center">
-              <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="w-32 h-32 rounded-full border-4 border-blue-500/50 flex items-center justify-center mx-auto mb-8">
-                <div className="w-24 h-24 rounded-full bg-blue-500/20 blur-md" />
-              </motion.div>
+              <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="w-32 h-32 rounded-full border-4 border-blue-500/50 flex items-center justify-center mx-auto mb-8"><div className="w-24 h-24 rounded-full bg-blue-500/20 blur-md" /></motion.div>
               <h2 className="text-2xl font-bold text-white mb-2">Protocolo Ativo</h2><p className="text-blue-400 mb-8">Respire profundamente...</p>
               <button onClick={() => setActiveProtocol(null)} className="px-6 py-2 border border-zinc-700 hover:bg-zinc-800 text-white rounded-full transition-colors">Encerrar</button>
             </div>
@@ -260,23 +252,25 @@ const DecouplingView = () => {
 
 // --- Tasks View ---
 const TasksView = ({ userId }: { userId: string }) => {
-  const { tasks, loading, addTask, toggleTask, updateTaskText, removeCompleted } = useGeneralTasks(userId);
+  const { tasks, loading, addTask, toggleTask, updateTaskText, removeCompleted, isInWindow } = useGeneralTasks(userId);
+  const inWindow = isInWindow();
   if (loading) return <div className="h-full flex items-center justify-center"><Loader2 className="w-12 h-12 text-red-600 animate-spin" /></div>;
   return (
     <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
       <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Tarefas Gerais</h1>
-      <p className="text-zinc-500 mb-8 font-medium text-sm sm:text-base max-w-2xl">Ambiente de alta performance.</p>
-      <div className="max-w-3xl space-y-3">
+      <p className="text-zinc-500 mb-2 font-medium text-sm sm:text-base max-w-2xl">Ambiente de alta performance.</p>
+      {!inWindow && <p className="text-yellow-500/80 text-xs mb-4 bg-yellow-900/10 border border-yellow-900/20 px-3 py-2 rounded-lg inline-block">⏰ As tarefas reiniciam às 23:00 e retornam às 04:00.</p>}
+      <div className="max-w-3xl space-y-3 mt-4">
         {tasks.length === 0 ? (
           <div className="py-12 text-center"><Check className="w-16 h-16 text-zinc-700 mx-auto mb-4" /><p className="text-zinc-500 font-medium">Nenhuma tarefa criada ainda</p></div>
         ) : (
-          <AnimatePresence>{tasks.map((task) => (
+          <AnimatePresence>{tasks.map(task => (
             <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
               className={cn("w-full p-4 border rounded-xl flex items-center gap-3 transition-all group backdrop-blur-sm", task.completed ? "border-red-900/30 bg-red-900/10" : "border-white/5 bg-black/20 hover:border-white/10")}>
               <div onClick={() => toggleTask(task.id)} className={cn("w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer shrink-0", task.completed ? "border-red-700 bg-red-700" : "border-zinc-700 group-hover:border-zinc-500")}>
                 {task.completed && <Check className="w-4 h-4 text-white" />}
               </div>
-              <input value={task.text} onChange={(e) => updateTaskText(task.id, e.target.value)}
+              <input value={task.text} onChange={e => updateTaskText(task.id, e.target.value)}
                 className={cn("text-base font-medium transition-colors bg-transparent border-none focus:outline-none w-full min-w-0", task.completed ? "text-zinc-600 line-through" : "text-zinc-200")} />
             </motion.div>
           ))}</AnimatePresence>
@@ -302,40 +296,23 @@ const JournalView = ({ userId }: { userId: string }) => {
     { q: 'Que sistema pode prevenir isso amanhã?', ph: 'Seja específico e actionável...' },
     { q: 'Reflexão livre: O que você aprendeu hoje?', ph: 'Escreva livremente...' },
   ];
-
-  // Check time window: open 18:00, reset 03:00
   const now = new Date();
   const hour = now.getHours();
   const isOpen = hour >= 18 || hour < 3;
   const allFilled = questions.every((_, i) => (entries[i] || '').trim().length > 0);
 
   const handleContinue = async () => {
-    setCompleted(true);
-    setAiLoading(true);
+    setCompleted(true); setAiLoading(true);
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: [{ role: 'user', content: `Analise as respostas do meu diário de reconfiguração de hoje e dê um resumo com insights e sugestões de melhoria. Seja direto e motivador.\n\n${questions.map((q, i) => `${q.q}\nResposta: ${entries[i] || '(vazio)'}`).join('\n\n')}` }] }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ type: 'journal_summary', messages: [{ role: 'user', content: `Analise as respostas do meu diário de reconfiguração de hoje e dê um resumo com insights e sugestões de melhoria.\n\n${questions.map((q, i) => `${q.q}\nResposta: ${entries[i] || '(vazio)'}`).join('\n\n')}` }] }),
       });
-      if (!resp.ok || !resp.body) throw new Error('Erro');
+      if (!resp.ok || !resp.body) throw new Error();
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buf = '', result = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let idx;
-        while ((idx = buf.indexOf('\n')) !== -1) {
-          let line = buf.slice(0, idx); buf = buf.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ') || line.trim() === '') continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') break;
-          try { const p = JSON.parse(json); const c = p.choices?.[0]?.delta?.content; if (c) { result += c; setAiSummary(result); } } catch {}
-        }
-      }
+      while (true) { const { done, value } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); let idx; while ((idx = buf.indexOf('\n')) !== -1) { let line = buf.slice(0, idx); buf = buf.slice(idx + 1); if (line.endsWith('\r')) line = line.slice(0, -1); if (!line.startsWith('data: ')) continue; const j = line.slice(6).trim(); if (j === '[DONE]') break; try { const p = JSON.parse(j); const c = p.choices?.[0]?.delta?.content; if (c) { result += c; setAiSummary(result); } } catch {} } }
     } catch { setAiSummary('Erro ao gerar resumo. Tente novamente.'); }
     setAiLoading(false);
   };
@@ -343,30 +320,28 @@ const JournalView = ({ userId }: { userId: string }) => {
   if (completed) {
     return (
       <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2 flex items-center gap-3"><FileText className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" /> Resumo do Diário</h1>
-        <p className="text-zinc-500 font-medium mb-6 text-sm sm:text-base">Análise da IA sobre suas respostas de hoje.</p>
-        <div className="max-w-3xl mx-auto bg-black/20 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
+        <h1 className="text-xl sm:text-2xl font-bold text-white mb-2 flex items-center gap-3"><FileText className="w-6 h-6 text-red-500" /> Resumo do Diário</h1>
+        <p className="text-zinc-500 font-medium mb-6 text-sm">Análise da IA sobre suas respostas de hoje.</p>
+        <div className="max-w-3xl mx-auto bg-black/20 border border-white/5 rounded-2xl p-6">
           {aiLoading && !aiSummary && <div className="flex items-center gap-3"><Loader2 className="w-5 h-5 text-red-500 animate-spin" /><span className="text-zinc-400 text-sm">Gerando resumo...</span></div>}
           {aiSummary && <div className="text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">{aiSummary}</div>}
         </div>
-        <button onClick={() => { setCompleted(false); setAiSummary(''); }} className="mt-6 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors">
-          <ArrowLeft className="w-4 h-4 inline mr-2" /> Voltar ao Diário
-        </button>
+        <button onClick={() => { setCompleted(false); setAiSummary(''); }} className="mt-6 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors"><ArrowLeft className="w-4 h-4 inline mr-2" /> Voltar ao Diário</button>
       </div>
     );
   }
 
   return (
     <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
-      <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2 flex items-center gap-3"><FileText className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" /> Diário de Reconfiguração</h1>
-      <p className="text-zinc-500 font-medium mb-2 text-sm sm:text-base">Reflexão guiada para identificar padrões.</p>
+      <h1 className="text-xl sm:text-2xl font-bold text-white mb-2 flex items-center gap-3"><FileText className="w-6 h-6 text-red-500" /> Diário de Reconfiguração</h1>
+      <p className="text-zinc-500 font-medium mb-2 text-sm">Reflexão guiada para identificar padrões.</p>
       {!isOpen && <p className="text-yellow-500/80 text-xs mb-4 bg-yellow-900/10 border border-yellow-900/20 px-3 py-2 rounded-lg inline-block">⏰ O diário abre às 18:00 e reseta às 03:00.</p>}
       <div className="max-w-3xl mx-auto space-y-4 mt-4">
         {questions.map((item, i) => (
-          <div key={i} className="bg-black/20 border border-white/5 rounded-xl p-4 sm:p-6 backdrop-blur-sm">
+          <div key={i} className="bg-black/20 border border-white/5 rounded-xl p-4 sm:p-6">
             <label className="block text-white font-bold mb-3 text-sm">{item.q}</label>
-            <textarea value={entries[i] || ''} onChange={(e) => saveEntry(i, e.target.value)} disabled={!isOpen}
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 min-h-[80px] resize-y font-medium leading-relaxed disabled:opacity-50" placeholder={item.ph} />
+            <textarea value={entries[i] || ''} onChange={e => saveEntry(i, e.target.value)} disabled={!isOpen}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 min-h-[80px] resize-y font-medium leading-relaxed disabled:opacity-50 text-sm" placeholder={item.ph} />
           </div>
         ))}
         {allFilled && isOpen && (
@@ -379,7 +354,7 @@ const JournalView = ({ userId }: { userId: string }) => {
   );
 };
 
-// --- Coworking View (persistent chat overlay) ---
+// --- Coworking View ---
 const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom }: { userId: string; userName: string; userAvatar?: string; activeRoom: any; setActiveRoom: (r: any) => void }) => {
   const { rooms, loading, createRoom, deleteRoom } = useCoworkingRooms(userId);
   const [showCreate, setShowCreate] = useState(false);
@@ -400,33 +375,21 @@ const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom
   return (
     <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Co-working Virtual</h1>
-          <p className="text-zinc-500 font-medium text-sm sm:text-base">Conecte-se com outros operadores.</p>
-        </div>
-        <button onClick={() => setShowCreate(true)} className="px-5 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2 shrink-0">
-          <Plus className="w-4 h-4" /> CRIAR SALA
-        </button>
+        <div><h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Co-working Virtual</h1><p className="text-zinc-500 font-medium text-sm sm:text-base">Conecte-se com outros operadores.</p></div>
+        <button onClick={() => setShowCreate(true)} className="px-5 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2 shrink-0"><Plus className="w-4 h-4" /> CRIAR SALA</button>
       </div>
-
       <AnimatePresence>
         {showCreate && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 sm:p-6">
             <h3 className="text-white font-bold mb-4">Nova Sala</h3>
             <div className="space-y-3">
-              <input type="text" value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="Nome da sala..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" autoFocus />
-              <textarea value={roomDesc} onChange={(e) => setRoomDesc(e.target.value)} placeholder="Descrição (opcional)..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 h-20 resize-none" />
+              <input type="text" value={roomName} onChange={e => setRoomName(e.target.value)} placeholder="Nome da sala..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" autoFocus />
+              <textarea value={roomDesc} onChange={e => setRoomDesc(e.target.value)} placeholder="Descrição (opcional)..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 h-20 resize-none" />
               <div className="flex gap-2">
-                <button onClick={() => setRoomType('chat')} className={cn("flex-1 py-2.5 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2", roomType === 'chat' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>
-                  <MessageCircle className="w-4 h-4" /> Bate-papo
-                </button>
-                <button onClick={() => setRoomType('call')} className={cn("flex-1 py-2.5 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2", roomType === 'call' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>
-                  <Phone className="w-4 h-4" /> Chamada
-                </button>
+                <button onClick={() => setRoomType('chat')} className={cn("flex-1 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2", roomType === 'chat' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400")}><MessageCircle className="w-4 h-4" /> Bate-papo</button>
+                <button onClick={() => setRoomType('call')} className={cn("flex-1 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2", roomType === 'call' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400")}><Phone className="w-4 h-4" /> Chamada</button>
               </div>
-              {roomType === 'call' && (
-                <input type="url" value={meetLink} onChange={(e) => setMeetLink(e.target.value)} placeholder="Cole o link do Google Meet ou Discord..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" />
-              )}
+              {roomType === 'call' && <input type="url" value={meetLink} onChange={e => setMeetLink(e.target.value)} placeholder="Cole o link do Google Meet ou Discord..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" />}
               <div className="flex gap-2">
                 <button onClick={handleCreate} className="flex-1 py-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors">CRIAR</button>
                 <button onClick={() => setShowCreate(false)} className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors">CANCELAR</button>
@@ -435,34 +398,23 @@ const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom
           </motion.div>
         )}
       </AnimatePresence>
-
       {rooms.length === 0 ? (
         <div className="py-16 text-center"><Users className="w-16 h-16 text-zinc-700 mx-auto mb-4" /><h3 className="text-xl font-bold text-white mb-2">Nenhuma sala criada ainda</h3><p className="text-zinc-500 font-medium">Crie uma sala para colaborar.</p></div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {rooms.map((room) => (
+          {rooms.map(room => (
             <div key={room.id} className={cn("bg-black/20 border rounded-2xl p-5 sm:p-6 hover:border-red-900/30 transition-all group", activeRoom?.id === room.id ? "border-red-600/50" : "border-white/5")}>
-              <div className="flex items-center gap-3 mb-3">
-                {room.room_type === 'chat' ? <MessageCircle className="w-5 h-5 text-blue-400" /> : <Phone className="w-5 h-5 text-emerald-400" />}
-                <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">{room.room_type === 'chat' ? 'Bate-papo' : 'Chamada'}</span>
-              </div>
+              <div className="flex items-center gap-3 mb-3">{room.room_type === 'chat' ? <MessageCircle className="w-5 h-5 text-blue-400" /> : <Phone className="w-5 h-5 text-emerald-400" />}<span className="text-xs font-bold uppercase tracking-wider text-zinc-500">{room.room_type === 'chat' ? 'Bate-papo' : 'Chamada'}</span></div>
               <h3 className="text-lg font-bold text-white mb-1">{room.name}</h3>
               {room.description && <p className="text-zinc-500 text-sm mb-2">{room.description}</p>}
               <p className="text-zinc-600 text-xs mb-4">Criado por: {room.created_by === userId ? 'Você' : 'Outro operador'}</p>
               <div className="flex gap-2">
                 {room.room_type === 'chat' ? (
-                  <button onClick={() => setActiveRoom(activeRoom?.id === room.id ? null : room)} className={cn("flex-1 py-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2", activeRoom?.id === room.id ? "bg-red-900 text-white" : "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400")}>
-                    <MessageCircle className="w-4 h-4" /> {activeRoom?.id === room.id ? 'Ativo' : 'Entrar'}
-                  </button>
+                  <button onClick={() => setActiveRoom(activeRoom?.id === room.id ? null : room)} className={cn("flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2", activeRoom?.id === room.id ? "bg-red-900 text-white" : "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400")}><MessageCircle className="w-4 h-4" /> {activeRoom?.id === room.id ? 'Ativo' : 'Entrar'}</button>
                 ) : (
-                  <a href={room.meet_link || '#'} target="_blank" rel="noopener noreferrer"
-                    className={cn("flex-1 py-2 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2", room.meet_link ? "bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-400" : "bg-zinc-800 text-zinc-500 cursor-not-allowed")}>
-                    <ExternalLink className="w-4 h-4" /> Entrar na Chamada
-                  </a>
+                  <a href={room.meet_link || '#'} target="_blank" rel="noopener noreferrer" className={cn("flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2", room.meet_link ? "bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-400" : "bg-zinc-800 text-zinc-500 cursor-not-allowed")}><ExternalLink className="w-4 h-4" /> Entrar na Chamada</a>
                 )}
-                {room.created_by === userId && (
-                  <button onClick={() => deleteRoom(room.id)} className="px-3 py-2 bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
-                )}
+                {room.created_by === userId && <button onClick={() => deleteRoom(room.id)} className="px-3 py-2 bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>}
               </div>
             </div>
           ))}
@@ -472,53 +424,44 @@ const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom
   );
 };
 
-// --- Persistent Chat Overlay ---
-const ChatOverlay = ({ room, userId, userName, userAvatar, onClose }: { room: any; userId: string; userName: string; userAvatar?: string; onClose: () => void }) => {
+// --- Chat Overlay ---
+const ChatOverlay = ({ room, userId, userName, userAvatar, onClose, onClickUser }: { room: any; userId: string; userName: string; userAvatar?: string; onClose: () => void; onClickUser?: (uid: string) => void }) => {
   const { messages, sendMessage } = useCoworkingMessages(room.id);
   const [chatInput, setChatInput] = useState('');
   const [replyTo, setReplyTo] = useState<any>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const handleSend = async () => {
     if (!chatInput.trim()) return;
     await sendMessage(userId, userName, chatInput.trim(), userAvatar, replyTo?.id);
-    setChatInput('');
-    setReplyTo(null);
+    setChatInput(''); setReplyTo(null);
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-[340px] sm:w-[400px] h-[500px] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed bottom-4 right-4 z-40 w-[320px] sm:w-[380px] h-[460px] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
       <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-3 bg-zinc-900/50">
-        <MessageCircle className="w-5 h-5 text-blue-400" />
-        <h3 className="text-white font-bold text-sm flex-1 truncate">{room.name}</h3>
+        <MessageCircle className="w-5 h-5 text-blue-400" /><h3 className="text-white font-bold text-sm flex-1 truncate">{room.name}</h3>
         <button onClick={onClose} className="px-3 py-1 bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-lg text-xs font-bold transition-colors">Sair</button>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {messages.length === 0 && <p className="text-center text-zinc-600 text-sm py-8">Nenhuma mensagem ainda. Seja o primeiro!</p>}
+        {messages.length === 0 && <p className="text-center text-zinc-600 text-sm py-8">Nenhuma mensagem ainda.</p>}
         {messages.map((msg: any) => {
           const replyMsg = msg.reply_to ? messages.find((m: any) => m.id === msg.reply_to) : null;
           return (
             <div key={msg.id} className={`flex ${msg.user_id === userId ? 'justify-end' : 'justify-start'} group`}>
               <div className="max-w-[85%]">
-                {replyMsg && (
-                  <div className="text-[10px] text-zinc-600 bg-zinc-900/50 px-2 py-1 rounded-t-lg border-l-2 border-zinc-700 mb-0.5 truncate">
-                    ↳ {replyMsg.user_name}: {replyMsg.content?.slice(0, 40)}...
-                  </div>
-                )}
+                {replyMsg && <div className="text-[10px] text-zinc-600 bg-zinc-900/50 px-2 py-1 rounded-t-lg border-l-2 border-zinc-700 mb-0.5 truncate">↳ {replyMsg.user_name}: {replyMsg.content?.slice(0, 40)}</div>}
                 <div className={`px-3 py-2 rounded-xl text-sm ${msg.user_id === userId ? 'bg-red-900/30 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
                   {msg.user_id !== userId && (
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 cursor-pointer" onClick={() => onClickUser?.(msg.user_id)}>
                       {msg.avatar_url && <img src={msg.avatar_url} alt="" className="w-4 h-4 rounded-full object-cover" />}
-                      <p className="text-xs text-zinc-500 font-bold">{msg.user_name}</p>
+                      <p className="text-xs text-zinc-500 font-bold hover:text-red-400 transition-colors">{msg.user_name}</p>
                     </div>
                   )}
                   {msg.content}
                 </div>
-                <button onClick={() => setReplyTo(msg)} className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-600 hover:text-zinc-400 transition-all mt-0.5">
-                  <Reply className="w-3 h-3 inline mr-1" />Responder
-                </button>
+                <button onClick={() => setReplyTo(msg)} className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-600 hover:text-zinc-400 transition-all mt-0.5"><Reply className="w-3 h-3 inline mr-1" />Responder</button>
               </div>
             </div>
           );
@@ -527,14 +470,14 @@ const ChatOverlay = ({ room, userId, userName, userAvatar, onClose }: { room: an
       </div>
       {replyTo && (
         <div className="px-3 py-2 border-t border-zinc-800 bg-zinc-900/50 flex items-center gap-2">
-          <span className="text-xs text-zinc-500 flex-1 truncate">Respondendo a <span className="text-white font-bold">{replyTo.user_name}</span>: {replyTo.content?.slice(0, 30)}...</span>
+          <span className="text-xs text-zinc-500 flex-1 truncate">Respondendo a <span className="text-white font-bold">{replyTo.user_name}</span></span>
           <button onClick={() => setReplyTo(null)} className="text-zinc-500 hover:text-white"><X className="w-3 h-3" /></button>
         </div>
       )}
       <div className="p-3 border-t border-zinc-800">
         <div className="flex gap-2">
-          <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Digite sua mensagem..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-red-600" />
+          <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()}
+            placeholder="Mensagem..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-red-600" />
           <button onClick={handleSend} className="p-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl transition-colors"><Send className="w-4 h-4" /></button>
         </div>
       </div>
@@ -555,40 +498,21 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
   const [brainstormResult, setBrainstormResult] = useState('');
   const [brainstormLoading, setBrainstormLoading] = useState(false);
 
-  const handleCreate = async () => {
-    if (!title.trim()) return;
-    await addProject(title.trim(), desc.trim());
-    setTitle(''); setDesc(''); setShowCreate(false);
-  };
+  const handleCreate = async () => { if (!title.trim()) return; await addProject(title.trim(), desc.trim()); setTitle(''); setDesc(''); setShowCreate(false); };
 
   const handleBrainstorm = async () => {
     if (!brainstormInput.trim()) return;
-    setBrainstormLoading(true);
-    setBrainstormResult('');
+    setBrainstormLoading(true); setBrainstormResult('');
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: [{ role: 'user', content: `Faça um brainstorming detalhado sobre esta ideia de projeto. Sugira: nome, objetivo, etapas de execução, recursos necessários e possíveis obstáculos. Ideia: ${brainstormInput}` }] }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ type: 'brainstorm', messages: [{ role: 'user', content: `Faça um brainstorming detalhado sobre esta ideia de projeto: ${brainstormInput}` }] }),
       });
-      if (!resp.ok || !resp.body) throw new Error('Erro');
+      if (!resp.ok || !resp.body) throw new Error();
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buf = '', result = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let idx;
-        while ((idx = buf.indexOf('\n')) !== -1) {
-          let line = buf.slice(0, idx); buf = buf.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ') || line.trim() === '') continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') break;
-          try { const p = JSON.parse(json); const c = p.choices?.[0]?.delta?.content; if (c) { result += c; setBrainstormResult(result); } } catch {}
-        }
-      }
+      while (true) { const { done, value } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); let idx; while ((idx = buf.indexOf('\n')) !== -1) { let line = buf.slice(0, idx); buf = buf.slice(idx + 1); if (line.endsWith('\r')) line = line.slice(0, -1); if (!line.startsWith('data: ')) continue; const j = line.slice(6).trim(); if (j === '[DONE]') break; try { const p = JSON.parse(j); const c = p.choices?.[0]?.delta?.content; if (c) { result += c; setBrainstormResult(result); } } catch {} } }
     } catch { setBrainstormResult('Erro ao gerar brainstorming. Tente novamente.'); }
     setBrainstormLoading(false);
   };
@@ -599,13 +523,9 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
     const project = projects.find(p => p.id === editingId);
     return (
       <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
-        <button onClick={() => { updateProject(editingId, { description: editContent }); setEditingId(null); }} className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 text-sm font-medium">
-          <ArrowLeft className="w-4 h-4" /> Salvar e Voltar
-        </button>
+        <button onClick={() => { updateProject(editingId, { description: editContent }); setEditingId(null); }} className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 text-sm font-medium"><ArrowLeft className="w-4 h-4" /> Salvar e Voltar</button>
         <h1 className="text-2xl font-bold text-white mb-4">{project?.title}</h1>
-        <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)}
-          className="w-full h-[calc(100vh-250px)] bg-black/20 border border-white/5 rounded-xl p-6 text-white focus:outline-none focus:ring-1 focus:ring-red-600 resize-none font-medium leading-relaxed text-base"
-          placeholder="Escreva aqui... Use este espaço como um bloco de notas para seu projeto." />
+        <textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="w-full h-[calc(100vh-250px)] bg-black/20 border border-white/5 rounded-xl p-6 text-white focus:outline-none focus:ring-1 focus:ring-red-600 resize-none font-medium leading-relaxed text-base" placeholder="Escreva aqui..." />
       </div>
     );
   }
@@ -613,44 +533,36 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
   return (
     <div className="p-4 sm:p-6 lg:p-12 overflow-y-auto h-full">
       <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Laboratório</h1>
-      <p className="text-zinc-500 font-medium mb-6 text-sm sm:text-base">Área de construção e brainstorming.</p>
+      <p className="text-zinc-500 font-medium mb-6 text-sm">Área de construção e brainstorming.</p>
       <div className="flex gap-2 mb-8">
-        <button onClick={() => setTab('projects')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2", tab === 'projects' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>
-          <Atom className="w-4 h-4" /> Projetos
-        </button>
-        <button onClick={() => setTab('brainstorm')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2", tab === 'brainstorm' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>
-          <Lightbulb className="w-4 h-4" /> Brainstorming IA
-        </button>
+        <button onClick={() => setTab('projects')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2", tab === 'projects' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}><Atom className="w-4 h-4" /> Projetos</button>
+        <button onClick={() => setTab('brainstorm')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2", tab === 'brainstorm' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}><Lightbulb className="w-4 h-4" /> Brainstorming IA</button>
       </div>
       {tab === 'projects' ? (
         <>
-          <div className="flex justify-end mb-6">
-            <button onClick={() => setShowCreate(true)} className="px-5 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2 shrink-0"><Plus className="w-4 h-4" /> NOVO PROJETO</button>
-          </div>
-          <AnimatePresence>
-            {showCreate && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 sm:p-6 max-w-2xl">
-                <div className="space-y-3">
-                  <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nome do projeto..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" autoFocus />
-                  <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Descrição (opcional)..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 h-20 resize-none" />
-                  <div className="flex gap-2">
-                    <button onClick={handleCreate} className="flex-1 py-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors">CRIAR</button>
-                    <button onClick={() => { setShowCreate(false); setTitle(''); setDesc(''); }} className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors">CANCELAR</button>
-                  </div>
+          <div className="flex justify-end mb-6"><button onClick={() => setShowCreate(true)} className="px-5 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-sm flex items-center gap-2 shrink-0"><Plus className="w-4 h-4" /> NOVO PROJETO</button></div>
+          <AnimatePresence>{showCreate && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 sm:p-6 max-w-2xl">
+              <div className="space-y-3">
+                <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Nome do projeto..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" autoFocus />
+                <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Descrição..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 h-20 resize-none" />
+                <div className="flex gap-2">
+                  <button onClick={handleCreate} className="flex-1 py-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors">CRIAR</button>
+                  <button onClick={() => { setShowCreate(false); setTitle(''); setDesc(''); }} className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors">CANCELAR</button>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
+            </motion.div>
+          )}</AnimatePresence>
           {projects.length === 0 && !showCreate ? (
-            <div className="py-16 text-center"><Atom className="w-16 h-16 text-zinc-700 mx-auto mb-4" /><h3 className="text-xl font-bold text-white mb-2">Nenhum projeto criado</h3><p className="text-zinc-500 font-medium">Crie seu primeiro projeto.</p></div>
+            <div className="py-16 text-center"><Atom className="w-16 h-16 text-zinc-700 mx-auto mb-4" /><h3 className="text-xl font-bold text-white mb-2">Nenhum projeto criado</h3></div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {projects.map((p) => (
-                <div key={p.id} className="bg-black/20 border border-white/5 rounded-2xl p-5 sm:p-6 hover:border-red-900/30 transition-all group">
+              {projects.map(p => (
+                <div key={p.id} className="bg-black/20 border border-white/5 rounded-2xl p-5 sm:p-6 hover:border-red-900/30 transition-all">
                   <h3 className="text-lg font-bold text-white mb-2">{p.title}</h3>
                   {p.description && <p className="text-zinc-500 text-sm mb-4 line-clamp-3">{p.description}</p>}
                   <div className="flex gap-2">
-                    <button onClick={() => { setEditingId(p.id); setEditContent(p.description || ''); }} className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2"><Edit3 className="w-3.5 h-3.5" /> Editar</button>
+                    <button onClick={() => { setEditingId(p.id); setEditContent(p.description || ''); }} className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2"><Edit3 className="w-3.5 h-3.5" /> Editar</button>
                     <button onClick={() => removeProject(p.id)} className="px-3 py-2 bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
@@ -662,25 +574,19 @@ const LaboratoryView = ({ userId }: { userId: string }) => {
         <div className="max-w-3xl">
           <div className="bg-black/20 border border-white/5 rounded-2xl p-6 mb-6">
             <h3 className="text-white font-bold mb-4 flex items-center gap-2"><Lightbulb className="w-5 h-5 text-yellow-500" /> Descreva sua ideia</h3>
-            <textarea value={brainstormInput} onChange={(e) => setBrainstormInput(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 h-32 resize-none mb-4" placeholder="Ex: Um app de meditação gamificado para jovens..." />
-            <button onClick={handleBrainstorm} disabled={brainstormLoading || !brainstormInput.trim()} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center gap-2">
+            <textarea value={brainstormInput} onChange={e => setBrainstormInput(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 h-32 resize-none mb-4" placeholder="Ex: Um app de meditação gamificado..." />
+            <button onClick={handleBrainstorm} disabled={brainstormLoading || !brainstormInput.trim()} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold disabled:opacity-50 flex items-center gap-2">
               {brainstormLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Brain className="w-5 h-5" />} GERAR BRAINSTORMING
             </button>
           </div>
-          {brainstormResult && (
-            <div className="bg-black/20 border border-white/5 rounded-2xl p-6">
-              <h3 className="text-white font-bold mb-4 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-500" /> Resultado</h3>
-              <div className="text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">{brainstormResult}</div>
-            </div>
-          )}
+          {brainstormResult && <div className="bg-black/20 border border-white/5 rounded-2xl p-6"><h3 className="text-white font-bold mb-4 flex items-center gap-2"><Zap className="w-5 h-5 text-yellow-500" /> Resultado</h3><div className="text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed">{brainstormResult}</div></div>}
         </div>
       )}
     </div>
   );
 };
 
-// --- Library View (with upload) ---
+// --- Library View ---
 const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
   const [section, setSection] = useState<'aulas' | 'livros'>('aulas');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -692,7 +598,6 @@ const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
   const [addMode, setAddMode] = useState<'url' | 'upload'>('url');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-
   const categories = section === 'aulas' ? AULAS_CATEGORIES : LIVROS_CATEGORIES;
 
   const handleAdd = async () => {
@@ -720,52 +625,34 @@ const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
           <div><h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">{cat?.title}</h1><p className="text-zinc-500 font-medium text-sm">{cat?.desc}</p></div>
           {isAdmin && <button onClick={() => setShowAdd(true)} className="px-5 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-sm flex items-center gap-2 shrink-0"><Plus className="w-4 h-4" /> ADICIONAR</button>}
         </div>
-        <AnimatePresence>
-          {showAdd && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 sm:p-6 max-w-2xl">
-              <div className="space-y-3">
-                <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Título..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" autoFocus />
-                <textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Descrição..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 h-20 resize-none" />
-                <div className="flex gap-2">
-                  <button onClick={() => setAddMode('url')} className={cn("flex-1 py-2 rounded-lg font-semibold text-sm", addMode === 'url' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400")}>
-                    <ExternalLink className="w-4 h-4 inline mr-1" /> Por URL
-                  </button>
-                  <button onClick={() => setAddMode('upload')} className={cn("flex-1 py-2 rounded-lg font-semibold text-sm", addMode === 'upload' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400")}>
-                    <Upload className="w-4 h-4 inline mr-1" /> Upload
-                  </button>
-                </div>
-                {addMode === 'url' ? (
-                  <input type="url" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="URL do conteúdo..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" />
-                ) : (
-                  <div className="border-2 border-dashed border-zinc-700 rounded-xl p-4 text-center">
-                    <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} className="hidden" id="library-upload" accept=".pdf,.doc,.docx,.mp4,.mp3,.png,.jpg,.jpeg" />
-                    <label htmlFor="library-upload" className="cursor-pointer text-zinc-400 hover:text-white transition-colors">
-                      <Upload className="w-8 h-8 mx-auto mb-2" />
-                      <p className="text-sm font-medium">{uploadFile ? uploadFile.name : 'Clique para selecionar arquivo'}</p>
-                    </label>
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <button onClick={handleAdd} disabled={uploading} className="flex-1 py-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                    {uploading && <Loader2 className="w-4 h-4 animate-spin" />} ADICIONAR
-                  </button>
-                  <button onClick={() => setShowAdd(false)} className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors">CANCELAR</button>
-                </div>
+        <AnimatePresence>{showAdd && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 sm:p-6 max-w-2xl">
+            <div className="space-y-3">
+              <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Título..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" autoFocus />
+              <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Descrição..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600 h-20 resize-none" />
+              <div className="flex gap-2">
+                <button onClick={() => setAddMode('url')} className={cn("flex-1 py-2 rounded-lg font-semibold text-sm", addMode === 'url' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400")}><ExternalLink className="w-4 h-4 inline mr-1" /> URL</button>
+                <button onClick={() => setAddMode('upload')} className={cn("flex-1 py-2 rounded-lg font-semibold text-sm", addMode === 'upload' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400")}><Upload className="w-4 h-4 inline mr-1" /> Upload</button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {addMode === 'url' ? <input type="url" value={newUrl} onChange={e => setNewUrl(e.target.value)} placeholder="URL..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-red-600" /> : (
+                <div className="border-2 border-dashed border-zinc-700 rounded-xl p-4 text-center"><input type="file" onChange={e => setUploadFile(e.target.files?.[0] || null)} className="hidden" id="lib-upload" accept=".pdf,.doc,.docx,.mp4,.mp3,.png,.jpg" /><label htmlFor="lib-upload" className="cursor-pointer text-zinc-400 hover:text-white"><Upload className="w-8 h-8 mx-auto mb-2" /><p className="text-sm font-medium">{uploadFile ? uploadFile.name : 'Selecionar arquivo'}</p></label></div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={handleAdd} disabled={uploading} className="flex-1 py-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold disabled:opacity-50 flex items-center justify-center gap-2">{uploading && <Loader2 className="w-4 h-4 animate-spin" />} ADICIONAR</button>
+                <button onClick={() => setShowAdd(false)} className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors">CANCELAR</button>
+              </div>
+            </div>
+          </motion.div>
+        )}</AnimatePresence>
         {loading ? <div className="py-16 flex justify-center"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div> :
-          content.length === 0 ? (
-            <div className="py-16 text-center"><BookOpen className="w-16 h-16 text-zinc-700 mx-auto mb-4" /><h3 className="text-xl font-bold text-white mb-2">Nenhum conteúdo ainda</h3><p className="text-zinc-500 font-medium">Esta categoria ainda não possui conteúdo.</p></div>
-          ) : (
+          content.length === 0 ? <div className="py-16 text-center"><BookOpen className="w-16 h-16 text-zinc-700 mx-auto mb-4" /><h3 className="text-xl font-bold text-white mb-2">Nenhum conteúdo ainda</h3></div> : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {content.map((item) => (
+              {content.map(item => (
                 <div key={item.id} className="bg-black/20 border border-white/5 rounded-2xl p-5 sm:p-6 hover:border-red-900/30 transition-all">
                   <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
                   {item.description && <p className="text-zinc-500 text-sm mb-3">{item.description}</p>}
                   {item.content_url && <a href={item.content_url} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 text-sm font-medium">Abrir conteúdo →</a>}
-                  {isAdmin && <button onClick={() => removeContent(item.id)} className="mt-3 px-3 py-1.5 bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 rounded-lg text-xs font-bold transition-colors block"><Trash2 className="w-3.5 h-3.5 inline mr-1" /> Remover</button>}
+                  {isAdmin && <button onClick={() => removeContent(item.id)} className="mt-3 px-3 py-1.5 bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 rounded-lg text-xs font-bold block"><Trash2 className="w-3.5 h-3.5 inline mr-1" /> Remover</button>}
                 </div>
               ))}
             </div>
@@ -777,17 +664,13 @@ const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
   return (
     <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
       <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Biblioteca Estratégica</h1>
-      <p className="text-zinc-500 font-medium mb-6 text-sm sm:text-base">Conteúdo operacional. Consuma e execute.</p>
+      <p className="text-zinc-500 font-medium mb-6 text-sm">Conteúdo operacional.</p>
       <div className="flex gap-2 mb-8">
-        <button onClick={() => setSection('aulas')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2", section === 'aulas' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>
-          <GraduationCap className="w-4 h-4" /> Aulas
-        </button>
-        <button onClick={() => setSection('livros')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2", section === 'livros' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>
-          <BookMarked className="w-4 h-4" /> Livros
-        </button>
+        <button onClick={() => setSection('aulas')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2", section === 'aulas' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}><GraduationCap className="w-4 h-4" /> Aulas</button>
+        <button onClick={() => setSection('livros')} className={cn("px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2", section === 'livros' ? "bg-red-900 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}><BookMarked className="w-4 h-4" /> Livros</button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-        {categories.map((cat) => (
+        {categories.map(cat => (
           <div key={cat.id} onClick={() => setSelectedCategory(cat.id)} className="bg-black/20 border border-white/5 rounded-xl sm:rounded-2xl p-5 sm:p-6 hover:border-red-900/50 hover:bg-red-900/5 transition-all cursor-pointer group">
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/5 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform text-zinc-400 group-hover:text-red-500"><cat.icon className="w-5 h-5 sm:w-6 sm:h-6" /></div>
             <h3 className="text-base sm:text-lg font-bold text-white mb-2">{cat.title}</h3>
@@ -799,49 +682,31 @@ const LibraryView = ({ isAdmin }: { isAdmin: boolean }) => {
   );
 };
 
-// --- AI Analysis Helper ---
+// --- AI Analysis Button ---
 const AIAnalysisButton = ({ prompt, label }: { prompt: string; label: string }) => {
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
   const analyze = async () => {
-    setOpen(true);
-    setLoading(true);
-    setResult('');
+    setOpen(true); setLoading(true); setResult('');
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({ type: 'analysis', messages: [{ role: 'user', content: prompt }] }),
       });
-      if (!resp.ok || !resp.body) throw new Error('Erro');
+      if (!resp.ok || !resp.body) throw new Error();
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buf = '', res = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let idx;
-        while ((idx = buf.indexOf('\n')) !== -1) {
-          let line = buf.slice(0, idx); buf = buf.slice(idx + 1);
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (!line.startsWith('data: ') || line.trim() === '') continue;
-          const json = line.slice(6).trim();
-          if (json === '[DONE]') break;
-          try { const p = JSON.parse(json); const c = p.choices?.[0]?.delta?.content; if (c) { res += c; setResult(res); } } catch {}
-        }
-      }
+      while (true) { const { done, value } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); let idx; while ((idx = buf.indexOf('\n')) !== -1) { let line = buf.slice(0, idx); buf = buf.slice(idx + 1); if (line.endsWith('\r')) line = line.slice(0, -1); if (!line.startsWith('data: ')) continue; const j = line.slice(6).trim(); if (j === '[DONE]') break; try { const p = JSON.parse(j); const c = p.choices?.[0]?.delta?.content; if (c) { res += c; setResult(res); } } catch {} } }
     } catch { setResult('Erro ao analisar. Tente novamente.'); }
     setLoading(false);
   };
 
   return (
     <>
-      <button onClick={analyze} className="px-4 py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 border border-red-900/30">
-        <Brain className="w-3.5 h-3.5" /> {label}
-      </button>
+      <button onClick={analyze} className="px-4 py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded-xl text-xs font-bold border border-red-900/30 flex items-center gap-2"><Brain className="w-3.5 h-3.5" /> {label}</button>
       <AnimatePresence>
         {open && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4 bg-black/30 border border-red-900/20 rounded-xl p-4">
@@ -866,38 +731,56 @@ export default function FocusLabApp() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('focuslab-theme') !== 'light');
   const [chatbotOpen, setChatbotOpen] = useState(false);
   const [activeCoworkingRoom, setActiveCoworkingRoom] = useState<any>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showShareStats, setShowShareStats] = useState(false);
+  const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
 
   const userId = user?.id;
-  const { tasks: redTasks, loading: redLoading, addTask, toggleTask, removeTask, updateTask } = useRedTasks(userId);
+  const { tasks: redTasks, loading: redLoading, addTask, toggleTask, removeTask, updateTask, reorderTasks } = useRedTasks(userId);
   const { objective, loading: objLoading, updateObjective, createObjective } = useObjective(userId);
-  const { progress: challengeProgress, startChallenge, pauseChallenge, stopChallenge } = useChallengeProgress(userId);
+  const { progress: challengeProgress, startChallenge, pauseChallenge, stopChallenge, getDaysElapsed } = useChallengeProgress(userId);
   const { isAdmin } = useIsAdmin(userId);
   const { profile } = useProfile(userId);
+  const { streak, recordDay } = useDailyStreaks(userId);
+  const { sendRequest: sendFriendRequest } = useFriendships(userId);
+
+  // Record streak when RED tasks change
+  useEffect(() => {
+    if (userId && redTasks.length > 0) {
+      const completed = redTasks.filter(t => t.completed).length;
+      recordDay(completed, redTasks.length);
+    }
+  }, [redTasks, userId, recordDay]);
+
+  // Show onboarding for new users
+  useEffect(() => {
+    if (profile && !profile.onboarding_completed) {
+      setShowOnboarding(true);
+    }
+  }, [profile]);
+
+  const handleCompleteOnboarding = async () => {
+    setShowOnboarding(false);
+    if (profile) {
+      await supabase.from('profiles').update({ onboarding_completed: true }).eq('id', profile.id);
+    }
+  };
 
   if (authLoading) {
-    return (
-      <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center">
-        <div className="text-center"><Loader2 className="w-16 h-16 text-red-600 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Carregando sistema...</p></div>
-      </div>
-    );
+    return <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center"><Loader2 className="w-16 h-16 text-red-600 animate-spin mx-auto mb-4" /><p className="text-zinc-400 font-medium">Carregando sistema...</p></div>;
   }
 
   if (!user) return <><AuthScreen /></>;
 
   const lifeAreasData = (() => {
     const scores = { Mente: 0, Corpo: 0, Carreira: 0, Espírito: 0, Social: 0, Finanças: 0 };
-    redTasks.forEach(task => {
-      if (!task.completed) return;
-      if (task.category === 'Mind') scores.Mente += 20;
-      else if (task.category === 'Bio') scores.Corpo += 20;
-      else if (task.category === 'Work') scores.Carreira += 20;
-      else scores.Espírito += 10;
-    });
+    redTasks.forEach(task => { if (!task.completed) return; if (task.category === 'Mind') scores.Mente += 20; else if (task.category === 'Bio') scores.Corpo += 20; else if (task.category === 'Work') scores.Carreira += 20; else scores.Espírito += 10; });
     return Object.entries(scores).map(([subject, A]) => ({ subject, A: Math.min(A, 150), fullMark: 150 }));
   })();
 
   const focusObjective = objective?.title || 'Defina seu objeto de foco na aba R.E.D.';
   const daysRemaining = objective?.target_date ? Math.max(0, Math.ceil((new Date(objective.target_date).getTime() - Date.now()) / 86400000)) : null;
+  const journeyLevel = getJourneyLevel(streak);
 
   const handleLogout = async () => { await signOut(); toast.success('Desconectado.'); };
 
@@ -905,45 +788,41 @@ export default function FocusLabApp() {
     switch (currentView) {
       case 'red': return (
         <div className="h-full overflow-y-auto">
-          <RedViewReal tasks={redTasks} tasksLoading={redLoading} addTask={addTask} toggleTask={toggleTask} removeTask={removeTask} updateTask={updateTask} objective={objective} objectiveLoading={objLoading} updateObjective={updateObjective} createObjective={createObjective} userId={userId || null} />
+          <RedViewReal tasks={redTasks} tasksLoading={redLoading} addTask={addTask} toggleTask={toggleTask} removeTask={removeTask} updateTask={updateTask} reorderTasks={reorderTasks} objective={objective} objectiveLoading={objLoading} updateObjective={updateObjective} createObjective={createObjective} userId={userId || null} />
           <div className="px-4 sm:px-6 lg:px-12 pb-8">
-            <AIAnalysisButton
-              label="Análise IA do R.E.D."
-              prompt={`Analise minha Rotina Essencial Diária (R.E.D.) e dê sugestões de melhoria. Tarefas: ${redTasks.map(t => `${t.text} (${t.category}, ${t.completed ? 'concluída' : 'pendente'})`).join('; ')}. Total: ${redTasks.filter(t => t.completed).length}/${redTasks.length} concluídas.`}
-            />
+            <AIAnalysisButton label="Análise IA do R.E.D." prompt={`Analise minha R.E.D. Tarefas: ${redTasks.map(t => `${t.text} (${t.category}, ${t.completed ? 'concluída' : 'pendente'})`).join('; ')}. ${redTasks.filter(t => t.completed).length}/${redTasks.length} concluídas. Streak: ${streak} dias.`} />
           </div>
         </div>
       );
       case 'settings': return <SettingsView userId={userId} darkMode={darkMode} setDarkMode={setDarkMode} />;
-      case 'journey': return <JourneyView redTasks={redTasks} challengeProgress={challengeProgress} />;
+      case 'journey': return <JourneyView redTasks={redTasks} challengeProgress={challengeProgress} streak={streak} onShareStats={() => setShowShareStats(true)} />;
       case 'decoupling': return <DecouplingView />;
       case 'tasks': return <TasksView userId={userId!} />;
-      case 'coworking': return <CoworkingView userId={userId!} userName={profile?.display_name || user?.user_metadata?.name || 'Operador'} userAvatar={profile?.avatar_url} activeRoom={activeCoworkingRoom} setActiveRoom={setActiveCoworkingRoom} />;
+      case 'coworking': return <CoworkingView userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} activeRoom={activeCoworkingRoom} setActiveRoom={setActiveCoworkingRoom} />;
       case 'journal': return <JournalView userId={userId!} />;
       case 'laboratory': return <LaboratoryView userId={userId!} />;
       case 'library': return <LibraryView isAdmin={isAdmin} />;
+      case 'frilabs': return <FriLabsView userId={userId!} />;
+      case 'addiction': return <AddictionView userId={userId!} />;
       case 'chatbot': return (
         <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto flex flex-col items-center justify-center">
-          <Bot className="w-16 h-16 text-red-500 mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Assistente IA</h2>
-          <p className="text-zinc-500 text-sm mb-6 text-center max-w-md">O assistente de desenvolvimento pessoal do FocusLab está disponível no painel ao lado.</p>
-          <button onClick={() => setChatbotOpen(true)} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold transition-colors flex items-center gap-2">
-            <Bot className="w-5 h-5" /> Abrir Chat
-          </button>
+          <Bot className="w-16 h-16 text-red-500 mb-4" /><h2 className="text-2xl font-bold text-white mb-2">Assistente IA</h2>
+          <p className="text-zinc-500 text-sm mb-6 text-center max-w-md">O assistente de desenvolvimento pessoal do FocusLab.</p>
+          <button onClick={() => setChatbotOpen(true)} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold flex items-center gap-2"><Bot className="w-5 h-5" /> Abrir Chat</button>
         </div>
       );
       case 'challenges': return (
         <div className="p-4 sm:p-6 lg:p-12 overflow-y-auto h-full">
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Desafios</h1>
-          <p className="text-zinc-500 font-medium mb-8 text-sm sm:text-base">Protocolos de otimização comportamental.</p>
+          <p className="text-zinc-500 font-medium mb-8 text-sm">Protocolos de otimização comportamental.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-            {SYSTEM_CHALLENGES.map((c) => {
+            {SYSTEM_CHALLENGES.map(c => {
               const active = challengeProgress.find(p => p.challenge_id === c.id && p.is_active);
               const isPaused = active?.paused_at;
-              const daysElapsed = active ? Math.floor((Date.now() - new Date(active.started_at).getTime()) / 86400000) : 0;
+              const daysElapsed = active ? getDaysElapsed(active) : 0;
               const daysLeft = active ? Math.max(0, c.days - daysElapsed) : c.days;
               return (
-                <div key={c.id} className="bg-black/20 border border-white/5 hover:border-red-900/30 rounded-2xl p-5 sm:p-8 transition-all group relative overflow-hidden backdrop-blur-sm">
+                <div key={c.id} className="bg-black/20 border border-white/5 hover:border-red-900/30 rounded-2xl p-5 sm:p-8 transition-all group relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-8 opacity-5"><c.icon className="w-32 h-32 text-red-600" /></div>
                   <div className="relative z-10">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/5 text-red-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><c.icon className="w-5 h-5 sm:w-6 sm:h-6" /></div>
@@ -952,28 +831,17 @@ export default function FocusLabApp() {
                     <p className="text-zinc-400 text-sm leading-relaxed mb-4 line-clamp-2">{c.desc}</p>
                     {active && (
                       <div className="mb-4 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-zinc-500">Progresso:</span>
-                          <span className="text-white font-bold">{daysElapsed}/{c.days} dias</span>
-                        </div>
-                        <div className="h-2 bg-zinc-800 rounded-full mt-2 overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-red-600 to-red-500 rounded-full transition-all" style={{ width: `${Math.min(100, (daysElapsed / c.days) * 100)}%` }} />
-                        </div>
+                        <div className="flex justify-between items-center text-xs"><span className="text-zinc-500">Progresso:</span><span className="text-white font-bold">{daysElapsed}/{c.days} dias</span></div>
+                        <div className="h-2 bg-zinc-800 rounded-full mt-2 overflow-hidden"><div className="h-full bg-gradient-to-r from-red-600 to-red-500 rounded-full transition-all" style={{ width: `${Math.min(100, (daysElapsed / c.days) * 100)}%` }} /></div>
                         <p className="text-xs text-zinc-500 mt-2">{isPaused ? '⏸ Pausado' : `⏱ Faltam ${daysLeft} dias`}</p>
                       </div>
                     )}
                     {!active ? (
-                      <button onClick={() => startChallenge(c.id)} className="w-full py-2.5 rounded-xl font-bold text-sm transition-all bg-zinc-800 text-white hover:bg-red-900 flex items-center justify-center gap-2">
-                        <Play className="w-4 h-4" /> INICIAR
-                      </button>
+                      <button onClick={() => startChallenge(c.id)} className="w-full py-2.5 rounded-xl font-bold text-sm bg-zinc-800 text-white hover:bg-red-900 flex items-center justify-center gap-2"><Play className="w-4 h-4" /> INICIAR</button>
                     ) : (
                       <div className="flex gap-2">
-                        <button onClick={() => pauseChallenge(active.id)} className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">
-                          {isPaused ? <><Play className="w-4 h-4" /> RETOMAR</> : <><Pause className="w-4 h-4" /> PAUSAR</>}
-                        </button>
-                        <button onClick={() => stopChallenge(active.id)} className="px-4 py-2.5 rounded-xl font-bold text-sm transition-all bg-red-900/30 text-red-400 hover:bg-red-900/50 flex items-center justify-center gap-2">
-                          <Square className="w-4 h-4" /> PARAR
-                        </button>
+                        <button onClick={() => pauseChallenge(active.id)} className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-zinc-800 text-white hover:bg-zinc-700 flex items-center justify-center gap-2">{isPaused ? <><Play className="w-4 h-4" /> RETOMAR</> : <><Pause className="w-4 h-4" /> PAUSAR</>}</button>
+                        <button onClick={() => stopChallenge(active.id)} className="px-4 py-2.5 rounded-xl font-bold text-sm bg-red-900/30 text-red-400 hover:bg-red-900/50 flex items-center justify-center gap-2"><Square className="w-4 h-4" /> PARAR</button>
                       </div>
                     )}
                   </div>
@@ -992,26 +860,21 @@ export default function FocusLabApp() {
           <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
             <div className="max-w-4xl mx-auto">
               <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Metas Semanais</h1>
-              <p className="text-zinc-500 font-medium mb-8 text-sm sm:text-base">Análise de consistência e aderência ao plano.</p>
+              <p className="text-zinc-500 font-medium mb-8 text-sm">Análise de consistência.</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-black/20 border border-white/5 rounded-2xl p-4 sm:p-6 text-center">
-                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">RED Hoje</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-white">{completionPct}%</p>
-                </div>
-                <div className="bg-black/20 border border-white/5 rounded-2xl p-4 sm:p-6 text-center">
-                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Tarefas</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-white">{completedToday}/{totalToday}</p>
-                </div>
-                <div className="bg-black/20 border border-white/5 rounded-2xl p-4 sm:p-6 text-center">
-                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Desafios Ativos</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-white">{activeChals}</p>
-                </div>
-                <div className="bg-black/20 border border-white/5 rounded-2xl p-4 sm:p-6 text-center">
-                  <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">Score</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-red-500">{completionPct + activeChals * 10}</p>
-                </div>
+                {[
+                  { label: 'RED Hoje', value: `${completionPct}%` },
+                  { label: 'Tarefas', value: `${completedToday}/${totalToday}` },
+                  { label: 'Desafios', value: String(activeChals) },
+                  { label: 'Score', value: String(completionPct + activeChals * 10), color: 'text-red-500' },
+                ].map((s, i) => (
+                  <div key={i} className="bg-black/20 border border-white/5 rounded-2xl p-4 sm:p-6 text-center">
+                    <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">{s.label}</p>
+                    <p className={`text-2xl sm:text-3xl font-bold ${s.color || 'text-white'}`}>{s.value}</p>
+                  </div>
+                ))}
               </div>
-              <div className="bg-black/20 rounded-2xl p-5 sm:p-8 border border-white/5 backdrop-blur-sm mb-6">
+              <div className="bg-black/20 rounded-2xl p-5 sm:p-8 border border-white/5 mb-6">
                 <h3 className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-6">Performance Semanal</h3>
                 <div className="space-y-4">
                   {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((day, i) => {
@@ -1019,19 +882,14 @@ export default function FocusLabApp() {
                     return (
                       <div key={day} className="flex items-center gap-4">
                         <span className={cn("w-10 text-xs font-bold", isToday ? "text-red-400" : "text-zinc-500")}>{day}</span>
-                        <div className="flex-1 h-3 bg-zinc-900 rounded-full overflow-hidden">
-                          <div className={cn("h-full rounded-full transition-all", isToday ? "bg-gradient-to-r from-red-600 to-red-500" : "bg-zinc-800")} style={{ width: isToday ? `${completionPct}%` : '0%' }} />
-                        </div>
+                        <div className="flex-1 h-3 bg-zinc-900 rounded-full overflow-hidden"><div className={cn("h-full rounded-full transition-all", isToday ? "bg-gradient-to-r from-red-600 to-red-500" : "bg-zinc-800")} style={{ width: isToday ? `${completionPct}%` : '0%' }} /></div>
                         <span className={cn("text-xs font-bold w-10 text-right", isToday ? "text-white" : "text-zinc-700")}>{isToday ? `${completionPct}%` : '-'}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
-              <AIAnalysisButton
-                label="Análise IA das Metas"
-                prompt={`Analise minha performance semanal no FocusLab. RED completado hoje: ${completionPct}%. Tarefas: ${completedToday}/${totalToday}. Desafios ativos: ${activeChals}. Score: ${completionPct + activeChals * 10}. Dê sugestões para melhorar minha consistência semanal.`}
-              />
+              <AIAnalysisButton label="Análise IA das Metas" prompt={`Performance semanal: RED ${completionPct}%. Tarefas: ${completedToday}/${totalToday}. Desafios: ${activeChals}. Streak: ${streak} dias. Dê sugestões de melhoria.`} />
             </div>
           </div>
         );
@@ -1040,23 +898,24 @@ export default function FocusLabApp() {
         return (
           <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
-              <div><h1 className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-tight">Centro de Comando</h1><p className="text-zinc-500 font-medium text-sm sm:text-base">Sua jornada de evolução continua.</p></div>
-              <div className="flex items-center gap-4 bg-black/40 p-3 rounded-xl border border-zinc-800 backdrop-blur-sm relative z-20">
-                <div className="text-right"><span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Tarefas RED</span><div className="text-red-600 font-bold text-sm">{redTasks.filter(t => t.completed).length}/{redTasks.length}</div></div>
-                <Flame className="w-6 h-6 text-red-600 animate-pulse drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
+              <div><h1 className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-tight">Centro de Comando</h1><p className="text-zinc-500 font-medium text-sm">Sua jornada de evolução continua.</p></div>
+              <div className="flex items-center gap-4 bg-black/40 p-3 rounded-xl border border-zinc-800 relative z-20">
+                <div className="text-right"><span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Streak</span><div className="text-red-600 font-bold text-sm">🔥 {streak} dias</div></div>
+                <div className="text-right"><span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">RED</span><div className="text-red-600 font-bold text-sm">{redTasks.filter(t => t.completed).length}/{redTasks.length}</div></div>
               </div>
             </header>
             <div className="mb-8 flex flex-col items-center justify-center relative group">
               <div className="absolute inset-0 bg-red-900/10 blur-[100px] rounded-full pointer-events-none" />
               <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="relative z-10 flex flex-col items-center text-center">
-                <div className="w-28 h-28 sm:w-32 sm:h-32 md:w-40 md:h-40 bg-gradient-to-br from-zinc-900 to-black border-2 border-red-900/50 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(153,27,27,0.3)] mb-4 sm:mb-6 transition-all">
+                <div className="w-28 h-28 sm:w-32 sm:h-32 md:w-40 md:h-40 bg-gradient-to-br from-zinc-900 to-black border-2 border-red-900/50 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(153,27,27,0.3)] mb-4 sm:mb-6">
                   <Target className="w-12 h-12 sm:w-16 sm:h-16 text-red-500" />
                 </div>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="px-3 py-1 bg-red-900/20 border border-red-900/50 rounded-full text-red-400 text-[10px] font-bold uppercase tracking-widest">Objeto de Foco</div>
                   {daysRemaining !== null && <div className="text-zinc-500 text-xs font-mono">Faltam {daysRemaining} dias</div>}
                 </div>
-                <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white mb-6 max-w-2xl px-2 drop-shadow-md">{focusObjective}</h2>
+                <h2 className="text-xl sm:text-2xl md:text-4xl font-bold text-white mb-3 max-w-2xl px-2 drop-shadow-md">{focusObjective}</h2>
+                <div className="px-3 py-1 bg-zinc-800 rounded-full text-zinc-400 text-xs font-bold">{journeyLevel.icon} {journeyLevel.level}</div>
               </motion.div>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
@@ -1074,16 +933,15 @@ export default function FocusLabApp() {
               ))}
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
-              <div className="bg-black/20 border border-zinc-800 rounded-2xl p-5 sm:p-8 backdrop-blur-sm flex flex-col">
-                <div className="flex items-center gap-3 mb-4"><div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center"><Zap className="w-4 h-4 text-emerald-500" /></div>
-                  <h3 className="text-sm text-zinc-300 font-bold uppercase tracking-widest">Próximos Passos</h3></div>
+              <div className="bg-black/20 border border-zinc-800 rounded-2xl p-5 sm:p-8 flex flex-col">
+                <div className="flex items-center gap-3 mb-4"><div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center"><Zap className="w-4 h-4 text-emerald-500" /></div><h3 className="text-sm text-zinc-300 font-bold uppercase tracking-widest">Próximos Passos</h3></div>
                 <div className="space-y-3 flex-1">
                   {redTasks.length === 0 && <div className="p-3 bg-zinc-900/50 rounded-xl border-l-2 border-red-500"><p className="text-sm text-zinc-300 font-medium"><span className="text-red-400 font-bold text-xs uppercase block mb-1">Começar</span>Crie suas primeiras tarefas na R.E.D.</p></div>}
                   {redTasks.length > 0 && redTasks.filter(t => !t.completed).length > 0 && <div className="p-3 bg-zinc-900/50 rounded-xl border-l-2 border-red-500"><p className="text-sm text-zinc-300 font-medium"><span className="text-red-400 font-bold text-xs uppercase block mb-1">Pendente</span>{redTasks.filter(t => !t.completed).length} tarefa(s) aguardando.</p></div>}
                   {redTasks.length > 0 && redTasks.every(t => t.completed) && <div className="p-3 bg-zinc-900/50 rounded-xl border-l-2 border-emerald-500"><p className="text-sm text-zinc-300 font-medium"><span className="text-emerald-400 font-bold text-xs uppercase block mb-1">Excelente</span>Todas as tarefas RED concluídas!</p></div>}
                 </div>
               </div>
-              <div className="lg:col-span-2 bg-black/20 border border-zinc-800 rounded-2xl p-5 sm:p-8 backdrop-blur-sm">
+              <div className="lg:col-span-2 bg-black/20 border border-zinc-800 rounded-2xl p-5 sm:p-8">
                 <h3 className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-4 sm:mb-6">Métricas de Vida</h3>
                 <div className="h-56 sm:h-64 md:h-80 w-full flex items-center justify-center"><CustomRadarChart data={lifeAreasData} /></div>
               </div>
@@ -1095,23 +953,36 @@ export default function FocusLabApp() {
 
   return (
     <div className={cn("h-screen w-screen bg-zinc-950 text-white flex overflow-hidden", !darkMode && "light-theme")}>
-      {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-zinc-950/90 backdrop-blur-md border-b border-white/5 px-4 py-3 flex items-center gap-3">
         <button onClick={() => setMobileMenuOpen(true)} className="p-1.5 hover:bg-white/5 rounded-lg"><Menu className="w-6 h-6 text-zinc-400" /></button>
         <img src={focusLabLogo} alt="FocusLab" className="w-6 h-6" />
         <span className="text-sm font-bold text-white tracking-wider uppercase">Focus Lab</span>
       </div>
-      <Sidebar currentView={currentView} setView={(v) => { setCurrentView(v); if (v === 'chatbot') setChatbotOpen(true); }} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} />
+      <Sidebar currentView={currentView} setView={v => { setCurrentView(v); if (v === 'chatbot') setChatbotOpen(true); }} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} />
       <main className="flex-1 overflow-hidden min-w-0 md:mt-0 mt-14">{renderView()}</main>
-      
-      {/* Persistent chat overlay for coworking */}
+
       {activeCoworkingRoom && activeCoworkingRoom.room_type === 'chat' && (
-        <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} />
+        <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} onClickUser={uid => setProfileModalUserId(uid)} />
       )}
-      
-      {/* Chatbot panel */}
+
       <AnimatePresence>
         {chatbotOpen && !activeCoworkingRoom && <ChatbotPanel open={chatbotOpen} setOpen={setChatbotOpen} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showOnboarding && <OnboardingTour onComplete={handleCompleteOnboarding} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showShareStats && (
+          <ShareableStats streak={streak} level={journeyLevel.level} redCompleted={redTasks.filter(t => t.completed).length} redTotal={redTasks.length} challengesCompleted={challengeProgress.filter(p => !p.is_active && p.completed_at).length} displayName={profile?.display_name || 'Operador'} onClose={() => setShowShareStats(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {profileModalUserId && profileModalUserId !== userId && (
+          <UserProfileModal userId={profileModalUserId} currentUserId={userId!} onClose={() => setProfileModalUserId(null)} onSendFriendRequest={uid => { sendFriendRequest(uid); setProfileModalUserId(null); }} onOpenDM={uid => { setCurrentView('frilabs'); setProfileModalUserId(null); }} />
+        )}
       </AnimatePresence>
     </div>
   );
