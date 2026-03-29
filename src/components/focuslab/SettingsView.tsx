@@ -116,7 +116,7 @@ export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: strin
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'support' ? (
               <div className="space-y-6 max-w-2xl">
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8">
                   <h2 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2"><HelpCircle className="w-5 h-5 text-red-500" /> Suporte</h2>
