@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SettingsView } from './SettingsView';
 import { RedViewReal } from './RedViewReal';
@@ -758,6 +758,29 @@ export default function FocusLabApp() {
       setShowOnboarding(true);
     }
   }, [profile]);
+
+  // Load global active theme on mount
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        // Try cached first for instant load
+        const cached = localStorage.getItem('focuslab-active-theme');
+        if (cached) {
+          const { applyThemeToDOM } = await import('./ThemeEditor');
+          applyThemeToDOM(JSON.parse(cached));
+        }
+        // Then fetch from DB for latest
+        const { data } = await supabase.from('global_themes').select('colors').eq('is_active', true).single();
+        if (data) {
+          const colors = typeof data.colors === 'string' ? JSON.parse(data.colors) : data.colors;
+          const { applyThemeToDOM } = await import('./ThemeEditor');
+          applyThemeToDOM(colors);
+          localStorage.setItem('focuslab-active-theme', JSON.stringify(colors));
+        }
+      } catch {}
+    };
+    loadTheme();
+  }, []);
 
   const handleCompleteOnboarding = async () => {
     setShowOnboarding(false);
