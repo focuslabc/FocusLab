@@ -46,8 +46,8 @@ export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: strin
             {[
               { id: 'profile' as const, icon: User, label: 'Perfil' },
               { id: 'app' as const, icon: Monitor, label: 'Sistema' },
+              { id: 'theme' as const, icon: Palette, label: 'Tema' },
               { id: 'support' as const, icon: HelpCircle, label: 'Suporte' },
-              ...(isAdmin ? [{ id: 'theme' as const, icon: Palette, label: 'Tema' }] : []),
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 lg:flex-none w-full flex items-center justify-center lg:justify-start gap-3 p-4 text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-red-900/20 text-white border-b-2 lg:border-b-0 lg:border-l-2 border-red-600' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
@@ -147,8 +147,8 @@ export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: strin
                   </div>
                 </div>
               </div>
-            ) : activeTab === 'theme' && isAdmin ? (
-              <ThemeEditor />
+            ) : activeTab === 'theme' ? (
+              isAdmin ? <ThemeEditor /> : <ThemeSelector />
             ) : null}
           </motion.div>
         </div>
