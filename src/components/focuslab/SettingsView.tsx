@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { User, Moon, Sun, Monitor, Camera, Mail, Phone, Instagram, ExternalLink, HelpCircle } from 'lucide-react';
+import { User, Moon, Sun, Monitor, Camera, Mail, Phone, Instagram, ExternalLink, HelpCircle, Palette } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useProfile } from '@/hooks/useSupabaseData';
+import { useProfile, useIsAdmin } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
+import { ThemeEditor } from './ThemeEditor';
 
 export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: string; darkMode: boolean; setDarkMode: (v: boolean) => void }) {
-  const [activeTab, setActiveTab] = useState<'profile' | 'app' | 'support'>('profile');
+  const { isAdmin } = useIsAdmin(userId);
+  const [activeTab, setActiveTab] = useState<'profile' | 'app' | 'support' | 'theme'>('profile');
   const { profile, loading, updateProfile, uploadAvatar } = useProfile(userId);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
@@ -45,6 +47,7 @@ export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: strin
               { id: 'profile' as const, icon: User, label: 'Perfil' },
               { id: 'app' as const, icon: Monitor, label: 'Sistema' },
               { id: 'support' as const, icon: HelpCircle, label: 'Suporte' },
+              ...(isAdmin ? [{ id: 'theme' as const, icon: Palette, label: 'Tema' }] : []),
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 lg:flex-none w-full flex items-center justify-center lg:justify-start gap-3 p-4 text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-red-900/20 text-white border-b-2 lg:border-b-0 lg:border-l-2 border-red-600' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
@@ -144,7 +147,9 @@ export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: strin
                   </div>
                 </div>
               </div>
-            )}
+            ) : activeTab === 'theme' && isAdmin ? (
+              <ThemeEditor />
+            ) : null}
           </motion.div>
         </div>
       </div>
