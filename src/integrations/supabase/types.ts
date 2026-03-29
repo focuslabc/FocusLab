@@ -310,6 +310,36 @@ export type Database = {
         }
         Relationships: []
       }
+      global_themes: {
+        Row: {
+          colors: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          is_light: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          colors?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_light?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          colors?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_light?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           content: string
