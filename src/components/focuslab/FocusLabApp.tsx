@@ -759,6 +759,29 @@ export default function FocusLabApp() {
     }
   }, [profile]);
 
+  // Load global active theme on mount
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        // Try cached first for instant load
+        const cached = localStorage.getItem('focuslab-active-theme');
+        if (cached) {
+          const { applyThemeToDOM } = await import('./ThemeEditor');
+          applyThemeToDOM(JSON.parse(cached));
+        }
+        // Then fetch from DB for latest
+        const { data } = await supabase.from('global_themes').select('colors').eq('is_active', true).single();
+        if (data) {
+          const colors = typeof data.colors === 'string' ? JSON.parse(data.colors) : data.colors;
+          const { applyThemeToDOM } = await import('./ThemeEditor');
+          applyThemeToDOM(colors);
+          localStorage.setItem('focuslab-active-theme', JSON.stringify(colors));
+        }
+      } catch {}
+    };
+    loadTheme();
+  }, []);
+
   const handleCompleteOnboarding = async () => {
     setShowOnboarding(false);
     if (profile) {
