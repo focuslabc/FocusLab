@@ -3,7 +3,7 @@ import { User, Moon, Sun, Monitor, Camera, Mail, Phone, Instagram, ExternalLink,
 import { motion } from 'motion/react';
 import { useProfile, useIsAdmin } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
-import { ThemeEditor } from './ThemeEditor';
+import { ThemeEditor, ThemeSelector } from './ThemeEditor';
 
 export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: string; darkMode: boolean; setDarkMode: (v: boolean) => void }) {
   const { isAdmin } = useIsAdmin(userId);
