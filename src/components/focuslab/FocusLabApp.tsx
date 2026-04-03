@@ -937,9 +937,9 @@ export default function FocusLabApp() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
                   { label: 'RED Hoje', value: `${completionPct}%` },
-                  { label: 'Tarefas', value: `${completedToday}/${totalToday}` },
-                  { label: 'Desafios', value: String(activeChals) },
-                  { label: 'Score', value: String(completionPct + activeChals * 10), color: 'text-red-500' },
+                  { label: 'Média Semana', value: `${weekAvg}%` },
+                  { label: 'Desafios Ativos', value: String(activeChals) },
+                  { label: 'Concluídos', value: String(completedChals), color: 'text-emerald-500' },
                 ].map((s, i) => (
                   <div key={i} className="bg-black/20 border border-white/5 rounded-2xl p-4 sm:p-6 text-center">
                     <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">{s.label}</p>
@@ -950,19 +950,24 @@ export default function FocusLabApp() {
               <div className="bg-black/20 rounded-2xl p-5 sm:p-8 border border-white/5 mb-6">
                 <h3 className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-6">Performance Semanal</h3>
                 <div className="space-y-4">
-                  {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((day, i) => {
-                    const isToday = i === new Date().getDay() - 1;
+                  {weekDays.map((day, i) => {
+                    const date = weekDates[i];
+                    const today = new Date().toISOString().split('T')[0];
+                    const isToday = date === today;
+                    const entry = weeklyData[date];
+                    const pct = entry && entry.total > 0 ? Math.round((entry.completed / entry.total) * 100) : 0;
+                    const hasData = !!entry;
                     return (
                       <div key={day} className="flex items-center gap-4">
-                        <span className={cn("w-10 text-xs font-bold", isToday ? "text-red-400" : "text-zinc-500")}>{day}</span>
-                        <div className="flex-1 h-3 bg-zinc-900 rounded-full overflow-hidden"><div className={cn("h-full rounded-full transition-all", isToday ? "bg-gradient-to-r from-red-600 to-red-500" : "bg-zinc-800")} style={{ width: isToday ? `${completionPct}%` : '0%' }} /></div>
-                        <span className={cn("text-xs font-bold w-10 text-right", isToday ? "text-white" : "text-zinc-700")}>{isToday ? `${completionPct}%` : '-'}</span>
+                        <span className={cn("w-10 text-xs font-bold", isToday ? "text-red-400" : hasData ? "text-zinc-300" : "text-zinc-500")}>{day}</span>
+                        <div className="flex-1 h-3 bg-zinc-900 rounded-full overflow-hidden"><div className={cn("h-full rounded-full transition-all", isToday ? "bg-gradient-to-r from-red-600 to-red-500" : hasData ? "bg-gradient-to-r from-zinc-500 to-zinc-400" : "bg-zinc-800")} style={{ width: `${pct}%` }} /></div>
+                        <span className={cn("text-xs font-bold w-10 text-right", isToday ? "text-white" : hasData ? "text-zinc-300" : "text-zinc-700")}>{hasData ? `${pct}%` : '-'}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
-              <AIAnalysisButton label="Análise IA das Metas" prompt={`Performance semanal: RED ${completionPct}%. Tarefas: ${completedToday}/${totalToday}. Desafios: ${activeChals}. Streak: ${streak} dias. Dê sugestões de melhoria.`} />
+              <AIAnalysisButton label="Análise IA das Metas" prompt={`Performance semanal: RED hoje ${completionPct}%, média da semana ${weekAvg}%. Tarefas: ${completedToday}/${totalToday}. Desafios ativos: ${activeChals}, concluídos: ${completedChals}. Streak: ${streak} dias. Dados da semana: ${weekDays.map((d, i) => `${d}: ${weekPcts[i]}%`).join(', ')}. Dê sugestões de melhoria.`} />
             </div>
           </div>
         );
