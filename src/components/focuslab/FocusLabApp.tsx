@@ -845,18 +845,36 @@ export default function FocusLabApp() {
           <button onClick={() => setChatbotOpen(true)} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold flex items-center gap-2"><Bot className="w-5 h-5" /> Abrir Chat</button>
         </div>
       );
-      case 'challenges': return (
+      case 'challenges': {
+        const completedChallenges = challengeProgress.filter(p => !p.is_active && p.completed_at).length;
+        return (
         <div className="p-4 sm:p-6 lg:p-12 overflow-y-auto h-full">
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Desafios</h1>
-          <p className="text-zinc-500 font-medium mb-8 text-sm">Protocolos de otimização comportamental.</p>
+          <p className="text-zinc-500 font-medium mb-4 text-sm">Protocolos de otimização comportamental.</p>
+          <div className="flex items-center gap-4 mb-8">
+            <div className="bg-black/20 border border-white/5 rounded-xl px-4 py-3 flex items-center gap-2">
+              <Flame className="w-5 h-5 text-red-500" />
+              <div><p className="text-[10px] text-zinc-500 uppercase font-bold">Concluídos</p><p className="text-white font-bold text-lg">{completedChallenges}</p></div>
+            </div>
+            <div className="bg-black/20 border border-white/5 rounded-xl px-4 py-3 flex items-center gap-2">
+              <Play className="w-5 h-5 text-emerald-500" />
+              <div><p className="text-[10px] text-zinc-500 uppercase font-bold">Ativos</p><p className="text-white font-bold text-lg">{challengeProgress.filter(p => p.is_active).length}</p></div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
             {SYSTEM_CHALLENGES.map(c => {
               const active = challengeProgress.find(p => p.challenge_id === c.id && p.is_active);
+              const completed = challengeProgress.find(p => p.challenge_id === c.id && !p.is_active && p.completed_at);
               const isPaused = active?.paused_at;
               const daysElapsed = active ? getDaysElapsed(active) : 0;
               const daysLeft = active ? Math.max(0, c.days - daysElapsed) : c.days;
+              // Auto-complete if days elapsed >= challenge days
+              if (active && daysElapsed >= c.days && !isPaused) {
+                stopChallenge(active.id);
+              }
               return (
                 <div key={c.id} className="bg-black/20 border border-white/5 hover:border-red-900/30 rounded-2xl p-5 sm:p-8 transition-all group relative overflow-hidden">
+                  {completed && <div className="absolute top-3 right-3 px-2 py-1 bg-emerald-900/30 text-emerald-400 rounded-full text-[10px] font-bold">✓ Concluído</div>}
                   <div className="absolute top-0 right-0 p-8 opacity-5"><c.icon className="w-32 h-32 text-red-600" /></div>
                   <div className="relative z-10">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/5 text-red-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><c.icon className="w-5 h-5 sm:w-6 sm:h-6" /></div>
@@ -865,7 +883,7 @@ export default function FocusLabApp() {
                     <p className="text-zinc-400 text-sm leading-relaxed mb-4 line-clamp-2">{c.desc}</p>
                     {active && (
                       <div className="mb-4 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                        <div className="flex justify-between items-center text-xs"><span className="text-zinc-500">Progresso:</span><span className="text-white font-bold">{daysElapsed}/{c.days} dias</span></div>
+                        <div className="flex justify-between items-center text-xs"><span className="text-zinc-500">Progresso:</span><span className="text-white font-bold">{Math.min(daysElapsed, c.days)}/{c.days} dias</span></div>
                         <div className="h-2 bg-zinc-800 rounded-full mt-2 overflow-hidden"><div className="h-full bg-gradient-to-r from-red-600 to-red-500 rounded-full transition-all" style={{ width: `${Math.min(100, (daysElapsed / c.days) * 100)}%` }} /></div>
                         <p className="text-xs text-zinc-500 mt-2">{isPaused ? '⏸ Pausado' : `⏱ Faltam ${daysLeft} dias`}</p>
                       </div>
@@ -884,12 +902,33 @@ export default function FocusLabApp() {
             })}
           </div>
         </div>
-      );
+        );
+      }
       case 'weekly_goals': {
         const completedToday = redTasks.filter(t => t.completed).length;
         const totalToday = redTasks.length;
         const completionPct = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
         const activeChals = challengeProgress.filter(p => p.is_active).length;
+        const completedChals = challengeProgress.filter(p => !p.is_active && p.completed_at).length;
+        // Build weekly dates
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+        monday.setHours(0, 0, 0, 0);
+        const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+        const weekDates = weekDays.map((_, i) => {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          return d.toISOString().split('T')[0];
+        });
+        // Calculate weekly average
+        const weekPcts = weekDates.map(date => {
+          const entry = weeklyData[date];
+          if (!entry || entry.total === 0) return 0;
+          return Math.round((entry.completed / entry.total) * 100);
+        });
+        const weekAvg = weekPcts.filter(p => p > 0).length > 0 ? Math.round(weekPcts.reduce((a, b) => a + b, 0) / Math.max(1, weekPcts.filter(p => p > 0).length)) : 0;
         return (
           <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
             <div className="max-w-4xl mx-auto">
