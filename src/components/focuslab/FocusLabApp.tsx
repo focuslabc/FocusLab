@@ -354,6 +354,17 @@ const JournalView = ({ userId }: { userId: string }) => {
   );
 };
 
+// --- Room Creator Name ---
+const RoomCreatorName = ({ createdBy, currentUserId }: { createdBy: string; currentUserId: string }) => {
+  const [profile, setProfile] = useState<any>(null);
+  useEffect(() => {
+    if (createdBy === currentUserId) return;
+    supabase.from('profiles').select('display_name,username').eq('user_id', createdBy).maybeSingle().then(({ data }) => setProfile(data));
+  }, [createdBy, currentUserId]);
+  if (createdBy === currentUserId) return <p className="text-zinc-600 text-xs mb-2">Criado por: Você</p>;
+  return <p className="text-zinc-600 text-xs mb-2">Criado por: {profile?.username ? `@${profile.username}` : profile?.display_name || 'Operador'}</p>;
+};
+
 // --- Coworking View ---
 const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom }: { userId: string; userName: string; userAvatar?: string; activeRoom: any; setActiveRoom: (r: any) => void }) => {
   const { rooms, loading, createRoom, deleteRoom } = useCoworkingRooms(userId);
