@@ -407,8 +407,8 @@ const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom
               <div className="flex items-center gap-3 mb-3">{room.room_type === 'chat' ? <MessageCircle className="w-5 h-5 text-blue-400" /> : <Phone className="w-5 h-5 text-emerald-400" />}<span className="text-xs font-bold uppercase tracking-wider text-zinc-500">{room.room_type === 'chat' ? 'Bate-papo' : 'Chamada'}</span></div>
               <h3 className="text-lg font-bold text-white mb-1">{room.name}</h3>
               {room.description && <p className="text-zinc-500 text-sm mb-2">{room.description}</p>}
-              <p className="text-zinc-600 text-xs mb-4">Criado por: {room.created_by === userId ? 'Você' : 'Outro operador'}</p>
-              <div className="flex gap-2">
+              <RoomCreatorName createdBy={room.created_by} currentUserId={userId!} />
+              <div className="flex gap-2 mt-2">
                 {room.room_type === 'chat' ? (
                   <button onClick={() => setActiveRoom(activeRoom?.id === room.id ? null : room)} className={cn("flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2", activeRoom?.id === room.id ? "bg-red-900 text-white" : "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400")}><MessageCircle className="w-4 h-4" /> {activeRoom?.id === room.id ? 'Ativo' : 'Entrar'}</button>
                 ) : (
