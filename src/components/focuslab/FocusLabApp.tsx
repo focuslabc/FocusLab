@@ -354,6 +354,17 @@ const JournalView = ({ userId }: { userId: string }) => {
   );
 };
 
+// --- Room Creator Name ---
+const RoomCreatorName = ({ createdBy, currentUserId }: { createdBy: string; currentUserId: string }) => {
+  const [profile, setProfile] = useState<any>(null);
+  useEffect(() => {
+    if (createdBy === currentUserId) return;
+    supabase.from('profiles').select('display_name,username').eq('user_id', createdBy).maybeSingle().then(({ data }) => setProfile(data));
+  }, [createdBy, currentUserId]);
+  if (createdBy === currentUserId) return <p className="text-zinc-600 text-xs mb-2">Criado por: Você</p>;
+  return <p className="text-zinc-600 text-xs mb-2">Criado por: {profile?.username ? `@${profile.username}` : profile?.display_name || 'Operador'}</p>;
+};
+
 // --- Coworking View ---
 const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom }: { userId: string; userName: string; userAvatar?: string; activeRoom: any; setActiveRoom: (r: any) => void }) => {
   const { rooms, loading, createRoom, deleteRoom } = useCoworkingRooms(userId);
@@ -407,8 +418,8 @@ const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom
               <div className="flex items-center gap-3 mb-3">{room.room_type === 'chat' ? <MessageCircle className="w-5 h-5 text-blue-400" /> : <Phone className="w-5 h-5 text-emerald-400" />}<span className="text-xs font-bold uppercase tracking-wider text-zinc-500">{room.room_type === 'chat' ? 'Bate-papo' : 'Chamada'}</span></div>
               <h3 className="text-lg font-bold text-white mb-1">{room.name}</h3>
               {room.description && <p className="text-zinc-500 text-sm mb-2">{room.description}</p>}
-              <p className="text-zinc-600 text-xs mb-4">Criado por: {room.created_by === userId ? 'Você' : 'Outro operador'}</p>
-              <div className="flex gap-2">
+              <RoomCreatorName createdBy={room.created_by} currentUserId={userId!} />
+              <div className="flex gap-2 mt-2">
                 {room.room_type === 'chat' ? (
                   <button onClick={() => setActiveRoom(activeRoom?.id === room.id ? null : room)} className={cn("flex-1 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2", activeRoom?.id === room.id ? "bg-red-900 text-white" : "bg-blue-900/30 hover:bg-blue-900/50 text-blue-400")}><MessageCircle className="w-4 h-4" /> {activeRoom?.id === room.id ? 'Ativo' : 'Entrar'}</button>
                 ) : (
@@ -741,7 +752,7 @@ export default function FocusLabApp() {
   const { progress: challengeProgress, startChallenge, pauseChallenge, stopChallenge, getDaysElapsed } = useChallengeProgress(userId);
   const { isAdmin } = useIsAdmin(userId);
   const { profile } = useProfile(userId);
-  const { streak, recordDay } = useDailyStreaks(userId);
+  const { streak, weeklyData, recordDay } = useDailyStreaks(userId);
   const { sendRequest: sendFriendRequest } = useFriendships(userId);
 
   // Record streak when RED tasks change
@@ -834,18 +845,36 @@ export default function FocusLabApp() {
           <button onClick={() => setChatbotOpen(true)} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold flex items-center gap-2"><Bot className="w-5 h-5" /> Abrir Chat</button>
         </div>
       );
-      case 'challenges': return (
+      case 'challenges': {
+        const completedChallenges = challengeProgress.filter(p => !p.is_active && p.completed_at).length;
+        return (
         <div className="p-4 sm:p-6 lg:p-12 overflow-y-auto h-full">
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Desafios</h1>
-          <p className="text-zinc-500 font-medium mb-8 text-sm">Protocolos de otimização comportamental.</p>
+          <p className="text-zinc-500 font-medium mb-4 text-sm">Protocolos de otimização comportamental.</p>
+          <div className="flex items-center gap-4 mb-8">
+            <div className="bg-black/20 border border-white/5 rounded-xl px-4 py-3 flex items-center gap-2">
+              <Flame className="w-5 h-5 text-red-500" />
+              <div><p className="text-[10px] text-zinc-500 uppercase font-bold">Concluídos</p><p className="text-white font-bold text-lg">{completedChallenges}</p></div>
+            </div>
+            <div className="bg-black/20 border border-white/5 rounded-xl px-4 py-3 flex items-center gap-2">
+              <Play className="w-5 h-5 text-emerald-500" />
+              <div><p className="text-[10px] text-zinc-500 uppercase font-bold">Ativos</p><p className="text-white font-bold text-lg">{challengeProgress.filter(p => p.is_active).length}</p></div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
             {SYSTEM_CHALLENGES.map(c => {
               const active = challengeProgress.find(p => p.challenge_id === c.id && p.is_active);
+              const completed = challengeProgress.find(p => p.challenge_id === c.id && !p.is_active && p.completed_at);
               const isPaused = active?.paused_at;
               const daysElapsed = active ? getDaysElapsed(active) : 0;
               const daysLeft = active ? Math.max(0, c.days - daysElapsed) : c.days;
+              // Auto-complete if days elapsed >= challenge days
+              if (active && daysElapsed >= c.days && !isPaused) {
+                stopChallenge(active.id);
+              }
               return (
                 <div key={c.id} className="bg-black/20 border border-white/5 hover:border-red-900/30 rounded-2xl p-5 sm:p-8 transition-all group relative overflow-hidden">
+                  {completed && <div className="absolute top-3 right-3 px-2 py-1 bg-emerald-900/30 text-emerald-400 rounded-full text-[10px] font-bold">✓ Concluído</div>}
                   <div className="absolute top-0 right-0 p-8 opacity-5"><c.icon className="w-32 h-32 text-red-600" /></div>
                   <div className="relative z-10">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/5 text-red-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><c.icon className="w-5 h-5 sm:w-6 sm:h-6" /></div>
@@ -854,7 +883,7 @@ export default function FocusLabApp() {
                     <p className="text-zinc-400 text-sm leading-relaxed mb-4 line-clamp-2">{c.desc}</p>
                     {active && (
                       <div className="mb-4 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                        <div className="flex justify-between items-center text-xs"><span className="text-zinc-500">Progresso:</span><span className="text-white font-bold">{daysElapsed}/{c.days} dias</span></div>
+                        <div className="flex justify-between items-center text-xs"><span className="text-zinc-500">Progresso:</span><span className="text-white font-bold">{Math.min(daysElapsed, c.days)}/{c.days} dias</span></div>
                         <div className="h-2 bg-zinc-800 rounded-full mt-2 overflow-hidden"><div className="h-full bg-gradient-to-r from-red-600 to-red-500 rounded-full transition-all" style={{ width: `${Math.min(100, (daysElapsed / c.days) * 100)}%` }} /></div>
                         <p className="text-xs text-zinc-500 mt-2">{isPaused ? '⏸ Pausado' : `⏱ Faltam ${daysLeft} dias`}</p>
                       </div>
@@ -873,12 +902,33 @@ export default function FocusLabApp() {
             })}
           </div>
         </div>
-      );
+        );
+      }
       case 'weekly_goals': {
         const completedToday = redTasks.filter(t => t.completed).length;
         const totalToday = redTasks.length;
         const completionPct = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
         const activeChals = challengeProgress.filter(p => p.is_active).length;
+        const completedChals = challengeProgress.filter(p => !p.is_active && p.completed_at).length;
+        // Build weekly dates
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+        monday.setHours(0, 0, 0, 0);
+        const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+        const weekDates = weekDays.map((_, i) => {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          return d.toISOString().split('T')[0];
+        });
+        // Calculate weekly average
+        const weekPcts = weekDates.map(date => {
+          const entry = weeklyData[date];
+          if (!entry || entry.total === 0) return 0;
+          return Math.round((entry.completed / entry.total) * 100);
+        });
+        const weekAvg = weekPcts.filter(p => p > 0).length > 0 ? Math.round(weekPcts.reduce((a, b) => a + b, 0) / Math.max(1, weekPcts.filter(p => p > 0).length)) : 0;
         return (
           <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto">
             <div className="max-w-4xl mx-auto">
@@ -887,9 +937,9 @@ export default function FocusLabApp() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
                   { label: 'RED Hoje', value: `${completionPct}%` },
-                  { label: 'Tarefas', value: `${completedToday}/${totalToday}` },
-                  { label: 'Desafios', value: String(activeChals) },
-                  { label: 'Score', value: String(completionPct + activeChals * 10), color: 'text-red-500' },
+                  { label: 'Média Semana', value: `${weekAvg}%` },
+                  { label: 'Desafios Ativos', value: String(activeChals) },
+                  { label: 'Concluídos', value: String(completedChals), color: 'text-emerald-500' },
                 ].map((s, i) => (
                   <div key={i} className="bg-black/20 border border-white/5 rounded-2xl p-4 sm:p-6 text-center">
                     <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest mb-2">{s.label}</p>
@@ -900,19 +950,24 @@ export default function FocusLabApp() {
               <div className="bg-black/20 rounded-2xl p-5 sm:p-8 border border-white/5 mb-6">
                 <h3 className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-6">Performance Semanal</h3>
                 <div className="space-y-4">
-                  {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((day, i) => {
-                    const isToday = i === new Date().getDay() - 1;
+                  {weekDays.map((day, i) => {
+                    const date = weekDates[i];
+                    const today = new Date().toISOString().split('T')[0];
+                    const isToday = date === today;
+                    const entry = weeklyData[date];
+                    const pct = entry && entry.total > 0 ? Math.round((entry.completed / entry.total) * 100) : 0;
+                    const hasData = !!entry;
                     return (
                       <div key={day} className="flex items-center gap-4">
-                        <span className={cn("w-10 text-xs font-bold", isToday ? "text-red-400" : "text-zinc-500")}>{day}</span>
-                        <div className="flex-1 h-3 bg-zinc-900 rounded-full overflow-hidden"><div className={cn("h-full rounded-full transition-all", isToday ? "bg-gradient-to-r from-red-600 to-red-500" : "bg-zinc-800")} style={{ width: isToday ? `${completionPct}%` : '0%' }} /></div>
-                        <span className={cn("text-xs font-bold w-10 text-right", isToday ? "text-white" : "text-zinc-700")}>{isToday ? `${completionPct}%` : '-'}</span>
+                        <span className={cn("w-10 text-xs font-bold", isToday ? "text-red-400" : hasData ? "text-zinc-300" : "text-zinc-500")}>{day}</span>
+                        <div className="flex-1 h-3 bg-zinc-900 rounded-full overflow-hidden"><div className={cn("h-full rounded-full transition-all", isToday ? "bg-gradient-to-r from-red-600 to-red-500" : hasData ? "bg-gradient-to-r from-zinc-500 to-zinc-400" : "bg-zinc-800")} style={{ width: `${pct}%` }} /></div>
+                        <span className={cn("text-xs font-bold w-10 text-right", isToday ? "text-white" : hasData ? "text-zinc-300" : "text-zinc-700")}>{hasData ? `${pct}%` : '-'}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
-              <AIAnalysisButton label="Análise IA das Metas" prompt={`Performance semanal: RED ${completionPct}%. Tarefas: ${completedToday}/${totalToday}. Desafios: ${activeChals}. Streak: ${streak} dias. Dê sugestões de melhoria.`} />
+              <AIAnalysisButton label="Análise IA das Metas" prompt={`Performance semanal: RED hoje ${completionPct}%, média da semana ${weekAvg}%. Tarefas: ${completedToday}/${totalToday}. Desafios ativos: ${activeChals}, concluídos: ${completedChals}. Streak: ${streak} dias. Dados da semana: ${weekDays.map((d, i) => `${d}: ${weekPcts[i]}%`).join(', ')}. Dê sugestões de melhoria.`} />
             </div>
           </div>
         );

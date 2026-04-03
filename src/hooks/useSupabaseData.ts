@@ -443,6 +443,7 @@ export async function checkUsernameAvailable(username: string): Promise<boolean>
 // ---- Daily Streaks ----
 export function useDailyStreaks(userId: string | undefined) {
   const [streak, setStreak] = useState(0);
+  const [weeklyData, setWeeklyData] = useState<Record<string, { completed: number; total: number }>>({});
 
   const fetchStreak = useCallback(async () => {
     if (!userId) return;
@@ -450,7 +451,29 @@ export function useDailyStreaks(userId: string | undefined) {
     if (!error) setStreak(data || 0);
   }, [userId]);
 
-  useEffect(() => { fetchStreak(); }, [fetchStreak]);
+  const fetchWeeklyData = useCallback(async () => {
+    if (!userId) return;
+    // Get start of current week (Monday)
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    const { data, error } = await supabase.from('daily_streaks').select('*')
+      .eq('user_id', userId)
+      .gte('streak_date', monday.toISOString().split('T')[0])
+      .lte('streak_date', sunday.toISOString().split('T')[0]);
+    if (!error && data) {
+      const map: Record<string, { completed: number; total: number }> = {};
+      data.forEach(d => { map[d.streak_date] = { completed: d.red_completed, total: d.red_total }; });
+      setWeeklyData(map);
+    }
+  }, [userId]);
+
+  useEffect(() => { fetchStreak(); fetchWeeklyData(); }, [fetchStreak, fetchWeeklyData]);
 
   const recordDay = useCallback(async (redCompleted: number, redTotal: number) => {
     if (!userId) return;
@@ -459,10 +482,10 @@ export function useDailyStreaks(userId: string | undefined) {
       { user_id: userId, streak_date: today, red_completed: redCompleted, red_total: redTotal },
       { onConflict: 'user_id,streak_date' }
     );
-    if (!error) await fetchStreak();
-  }, [userId, fetchStreak]);
+    if (!error) { await fetchStreak(); await fetchWeeklyData(); }
+  }, [userId, fetchStreak, fetchWeeklyData]);
 
-  return { streak, recordDay };
+  return { streak, weeklyData, recordDay };
 }
 
 // ---- Friendships ----
