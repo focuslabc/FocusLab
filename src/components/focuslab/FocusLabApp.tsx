@@ -741,7 +741,7 @@ export default function FocusLabApp() {
   const { progress: challengeProgress, startChallenge, pauseChallenge, stopChallenge, getDaysElapsed } = useChallengeProgress(userId);
   const { isAdmin } = useIsAdmin(userId);
   const { profile } = useProfile(userId);
-  const { streak, recordDay } = useDailyStreaks(userId);
+  const { streak, weeklyData, recordDay } = useDailyStreaks(userId);
   const { sendRequest: sendFriendRequest } = useFriendships(userId);
 
   // Record streak when RED tasks change
