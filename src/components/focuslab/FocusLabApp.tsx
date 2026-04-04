@@ -438,8 +438,9 @@ const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom
 };
 
 // --- Chat Overlay ---
-const ChatOverlay = ({ room, userId, userName, userAvatar, onClose, onClickUser }: { room: any; userId: string; userName: string; userAvatar?: string; onClose: () => void; onClickUser?: (uid: string) => void }) => {
-  const { messages, sendMessage } = useCoworkingMessages(room.id);
+const ChatOverlay = ({ room, userId, userName, userAvatar, onClose, onClickUser, blockedIds = [] }: { room: any; userId: string; userName: string; userAvatar?: string; onClose: () => void; onClickUser?: (uid: string) => void; blockedIds?: string[] }) => {
+  const { messages: rawMessages, sendMessage } = useCoworkingMessages(room.id);
+  const messages = rawMessages.filter((m: any) => !blockedIds.includes(m.user_id));
   const [chatInput, setChatInput] = useState('');
   const [replyTo, setReplyTo] = useState<any>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
