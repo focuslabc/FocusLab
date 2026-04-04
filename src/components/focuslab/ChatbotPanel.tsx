@@ -6,7 +6,7 @@ type Msg = { role: 'user' | 'assistant'; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
-export function ChatbotPanel({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
+export function ChatbotPanel() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -77,46 +77,88 @@ export function ChatbotPanel({ open, setOpen }: { open: boolean; setOpen: (v: bo
     setIsLoading(false);
   };
 
-  if (!open) return null;
-
   return (
-    <motion.div initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.95 }}
-      className="fixed bottom-4 right-4 z-50 w-[340px] sm:w-[380px] h-[500px] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-      <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-3 bg-zinc-900/50">
-        <div className="w-8 h-8 bg-red-900/20 rounded-lg flex items-center justify-center"><Bot className="w-4 h-4 text-red-500" /></div>
-        <div className="flex-1"><h3 className="text-white font-bold text-sm">Assistente FocusLab</h3><p className="text-zinc-500 text-[10px]">IA de desenvolvimento pessoal</p></div>
-        <button onClick={() => setOpen(false)} className="text-zinc-500 hover:text-white text-xs font-bold">✕</button>
+    <div className="h-full w-full flex flex-col bg-gradient-to-b from-zinc-950 to-zinc-900/50">
+      {/* Header */}
+      <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 border-b border-white/5 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-900/20 rounded-2xl flex items-center justify-center border border-red-900/30">
+            <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" />
+          </div>
+          <div>
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Assistente IA</h1>
+            <p className="text-zinc-500 text-xs sm:text-sm font-medium">Desenvolvimento pessoal e produtividade</p>
+          </div>
+        </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center py-8">
-            <Bot className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
-            <p className="text-zinc-500 text-sm font-medium">Olá! Sou o assistente do FocusLab.</p>
-            <p className="text-zinc-600 text-xs mt-1">Pergunte sobre produtividade, hábitos ou uso do app.</p>
-          </div>
-        )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${msg.role === 'user' ? 'bg-red-900/30 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
-              {msg.content}
+          <div className="flex flex-col items-center justify-center h-full text-center py-12">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-900/10 rounded-3xl flex items-center justify-center mb-6 border border-red-900/20">
+              <Bot className="w-8 h-8 sm:w-10 sm:h-10 text-zinc-600" />
+            </div>
+            <h2 className="text-white text-lg sm:text-xl font-bold mb-2">Olá! Sou o assistente do FocusLab.</h2>
+            <p className="text-zinc-500 text-sm max-w-md mb-8">
+              Pergunte sobre produtividade, hábitos, disciplina ou como usar o app.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg w-full">
+              {[
+                'Como manter a disciplina?',
+                'Dicas para acordar mais cedo',
+                'O que é a R.E.D.?',
+                'Como parar de procrastinar?'
+              ].map(q => (
+                <button key={q} onClick={() => { setInput(q); }}
+                  className="text-left px-4 py-3 bg-black/30 border border-white/5 rounded-xl text-zinc-400 text-sm hover:border-red-900/30 hover:text-zinc-200 transition-all">
+                  {q}
+                </button>
+              ))}
             </div>
           </div>
-        ))}
+        )}
+        <AnimatePresence>
+          {messages.map((msg, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] sm:max-w-[70%] lg:max-w-[60%] px-4 py-3 rounded-2xl text-sm sm:text-base whitespace-pre-wrap leading-relaxed ${
+                msg.role === 'user'
+                  ? 'bg-red-900/30 text-white rounded-br-md border border-red-900/20'
+                  : 'bg-black/40 text-zinc-200 rounded-bl-md border border-white/5'
+              }`}>
+                {msg.content}
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
         {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-          <div className="flex justify-start"><div className="bg-zinc-800 px-3 py-2 rounded-xl rounded-bl-sm"><Loader2 className="w-4 h-4 text-zinc-400 animate-spin" /></div></div>
+          <div className="flex justify-start">
+            <div className="bg-black/40 border border-white/5 px-4 py-3 rounded-2xl rounded-bl-md">
+              <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
+            </div>
+          </div>
         )}
       </div>
 
-      <div className="p-3 border-t border-zinc-800">
-        <div className="flex gap-2">
-          <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
-            placeholder="Pergunte algo..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-red-600 placeholder:text-zinc-600" />
-          <button onClick={send} disabled={isLoading || !input.trim()} className="p-2 bg-red-900 hover:bg-red-800 text-white rounded-xl disabled:opacity-50 transition-colors">
-            <Send className="w-4 h-4" />
+      {/* Input */}
+      <div className="px-4 sm:px-6 lg:px-8 py-4 border-t border-white/5 flex-shrink-0">
+        <div className="flex gap-3 max-w-4xl mx-auto">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
+            placeholder="Pergunte algo..."
+            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-sm sm:text-base focus:outline-none focus:border-red-600 placeholder:text-zinc-600 transition-colors"
+          />
+          <button
+            onClick={send}
+            disabled={isLoading || !input.trim()}
+            className="px-4 sm:px-5 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl disabled:opacity-50 transition-colors flex items-center gap-2 font-semibold"
+          >
+            <Send className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
