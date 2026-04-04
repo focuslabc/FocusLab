@@ -659,3 +659,52 @@ export async function searchUsers(query: string): Promise<any[]> {
   if (error) { console.error(error); return []; }
   return data || [];
 }
+
+// ---- Blocked Users ----
+export function useBlockedUsers(userId: string | undefined) {
+  const [blockedIds, setBlockedIds] = useState<string[]>([]);
+  const [blockedList, setBlockedList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchBlocked = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await supabase.from('blocked_users').select('*').eq('blocker_id', userId);
+    if (error) { console.error(error); setLoading(false); return; }
+    setBlockedIds((data || []).map(b => b.blocked_id));
+    setBlockedList(data || []);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { fetchBlocked(); }, [fetchBlocked]);
+
+  const blockUser = useCallback(async (blockedId: string) => {
+    if (!userId) return;
+    const { error } = await supabase.from('blocked_users').insert({ blocker_id: userId, blocked_id: blockedId });
+    if (error) toast.error('Erro ao bloquear');
+    else { toast.success('Usuário bloqueado'); await fetchBlocked(); }
+  }, [userId, fetchBlocked]);
+
+  const unblockUser = useCallback(async (blockedId: string) => {
+    if (!userId) return;
+    const { error } = await supabase.from('blocked_users').delete().eq('blocker_id', userId).eq('blocked_id', blockedId);
+    if (error) toast.error('Erro ao desbloquear');
+    else { toast.success('Usuário desbloqueado'); await fetchBlocked(); }
+  }, [userId, fetchBlocked]);
+
+  const isBlocked = useCallback((uid: string) => blockedIds.includes(uid), [blockedIds]);
+
+  return { blockedIds, blockedList, loading, blockUser, unblockUser, isBlocked };
+}
+
+// ---- Friend Count ----
+export function useFriendCount(userId: string | undefined) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from('friendships').select('id', { count: 'exact', head: true })
+      .eq('status', 'accepted')
+      .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
+      .then(({ count: c }) => setCount(c || 0));
+  }, [userId]);
+  return count;
+}
