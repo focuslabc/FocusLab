@@ -838,13 +838,7 @@ export default function FocusLabApp() {
       case 'library': return <LibraryView isAdmin={isAdmin} />;
       case 'frilabs': return <FriLabsView userId={userId!} />;
       case 'addiction': return <AddictionView userId={userId!} />;
-      case 'chatbot': return (
-        <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto flex flex-col items-center justify-center">
-          <Bot className="w-16 h-16 text-red-500 mb-4" /><h2 className="text-2xl font-bold text-white mb-2">Assistente IA</h2>
-          <p className="text-zinc-500 text-sm mb-6 text-center max-w-md">O assistente de desenvolvimento pessoal do FocusLab.</p>
-          <button onClick={() => setChatbotOpen(true)} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold flex items-center gap-2"><Bot className="w-5 h-5" /> Abrir Chat</button>
-        </div>
-      );
+      case 'chatbot': return <ChatbotPanel />;
       case 'challenges': {
         const completedChallenges = challengeProgress.filter(p => !p.is_active && p.completed_at).length;
         return (
