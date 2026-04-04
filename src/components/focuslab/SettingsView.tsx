@@ -164,6 +164,33 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
               </div>
             ) : activeTab === 'theme' ? (
               isAdmin ? <ThemeEditor /> : <ThemeSelector />
+            ) : activeTab === 'blocked' ? (
+              <div className="space-y-6 max-w-2xl">
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8">
+                  <h2 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2"><Ban className="w-5 h-5 text-red-500" /> Usuários Bloqueados</h2>
+                  {blockedList.length === 0 ? (
+                    <p className="text-zinc-500 text-sm">Nenhum usuário bloqueado.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {blockedList.map(b => {
+                        const p = blockedProfiles[b.blocked_id];
+                        return (
+                          <div key={b.id} className="flex items-center gap-3 p-3 bg-black/20 border border-white/5 rounded-xl">
+                            {p?.avatar_url ? <img src={p.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" /> : <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500">{(p?.display_name || '?')[0]}</div>}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white text-sm font-medium truncate">{p?.display_name || 'Operador'}</p>
+                              {p?.username && <p className="text-zinc-500 text-xs">@{p.username}</p>}
+                            </div>
+                            <button onClick={() => unblockUser(b.blocked_id)} className="px-3 py-1.5 bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 rounded-lg text-xs font-bold transition-colors">
+                              Desbloquear
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : null}
           </motion.div>
         </div>
