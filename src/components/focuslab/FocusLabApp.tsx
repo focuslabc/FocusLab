@@ -740,7 +740,7 @@ export default function FocusLabApp() {
   const [currentView, setCurrentView] = useState<ViewState>('command_center');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('focuslab-theme') !== 'light');
-  const [chatbotOpen, setChatbotOpen] = useState(false);
+  
   const [activeCoworkingRoom, setActiveCoworkingRoom] = useState<any>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showShareStats, setShowShareStats] = useState(false);
@@ -838,13 +838,7 @@ export default function FocusLabApp() {
       case 'library': return <LibraryView isAdmin={isAdmin} />;
       case 'frilabs': return <FriLabsView userId={userId!} />;
       case 'addiction': return <AddictionView userId={userId!} />;
-      case 'chatbot': return (
-        <div className="h-full w-full p-4 sm:p-6 lg:p-12 overflow-y-auto flex flex-col items-center justify-center">
-          <Bot className="w-16 h-16 text-red-500 mb-4" /><h2 className="text-2xl font-bold text-white mb-2">Assistente IA</h2>
-          <p className="text-zinc-500 text-sm mb-6 text-center max-w-md">O assistente de desenvolvimento pessoal do FocusLab.</p>
-          <button onClick={() => setChatbotOpen(true)} className="px-6 py-3 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold flex items-center gap-2"><Bot className="w-5 h-5" /> Abrir Chat</button>
-        </div>
-      );
+      case 'chatbot': return <ChatbotPanel />;
       case 'challenges': {
         const completedChallenges = challengeProgress.filter(p => !p.is_active && p.completed_at).length;
         return (
@@ -1036,16 +1030,13 @@ export default function FocusLabApp() {
         <img src={focusLabLogo} alt="FocusLab" className="w-6 h-6" />
         <span className="text-sm font-bold text-white tracking-wider uppercase">Focus Lab</span>
       </div>
-      <Sidebar currentView={currentView} setView={v => { setCurrentView(v); if (v === 'chatbot') setChatbotOpen(true); }} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} />
+      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} />
       <main className="flex-1 overflow-hidden min-w-0 md:mt-0 mt-14">{renderView()}</main>
 
       {activeCoworkingRoom && activeCoworkingRoom.room_type === 'chat' && (
         <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} onClickUser={uid => setProfileModalUserId(uid)} />
       )}
 
-      <AnimatePresence>
-        {chatbotOpen && !activeCoworkingRoom && <ChatbotPanel open={chatbotOpen} setOpen={setChatbotOpen} />}
-      </AnimatePresence>
 
       <AnimatePresence>
         {showOnboarding && <OnboardingTour onComplete={handleCompleteOnboarding} />}
