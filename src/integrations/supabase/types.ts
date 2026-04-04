@@ -103,6 +103,27 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_users: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       challenge_progress: {
         Row: {
           challenge_id: number
@@ -467,6 +488,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          is_premium: boolean | null
           onboarding_completed: boolean | null
           updated_at: string
           user_id: string
@@ -478,6 +500,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          is_premium?: boolean | null
           onboarding_completed?: boolean | null
           updated_at?: string
           user_id: string
@@ -489,6 +512,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          is_premium?: boolean | null
           onboarding_completed?: boolean | null
           updated_at?: string
           user_id?: string
