@@ -1030,7 +1030,7 @@ export default function FocusLabApp() {
         <img src={focusLabLogo} alt="FocusLab" className="w-6 h-6" />
         <span className="text-sm font-bold text-white tracking-wider uppercase">Focus Lab</span>
       </div>
-      <Sidebar currentView={currentView} setView={v => { setCurrentView(v); if (v === 'chatbot') setChatbotOpen(true); }} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} />
+      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} />
       <main className="flex-1 overflow-hidden min-w-0 md:mt-0 mt-14">{renderView()}</main>
 
       {activeCoworkingRoom && activeCoworkingRoom.room_type === 'chat' && (
