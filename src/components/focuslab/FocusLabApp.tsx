@@ -1039,7 +1039,7 @@ export default function FocusLabApp() {
       <main className="flex-1 overflow-hidden min-w-0 md:mt-0 mt-14">{renderView()}</main>
 
       {activeCoworkingRoom && activeCoworkingRoom.room_type === 'chat' && (
-        <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} onClickUser={uid => setProfileModalUserId(uid)} />
+        <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} onClickUser={uid => setProfileModalUserId(uid)} blockedIds={blockedIds} />
       )}
 
 
