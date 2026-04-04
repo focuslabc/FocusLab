@@ -19,7 +19,7 @@ import {
   LayoutDashboard, Atom, Activity, Target, BarChart3, Settings, Check, Play, ArrowRight,
   Brain, Dumbbell, BookOpen, Plus, Lock, Flame, Droplets, Smartphone, Clock,
   X, Zap, Users, Map, Shield, Video, FileText, Calendar, Trash2, Save, LogOut, Wind, Loader2,
-  MessageCircle, Phone, ArrowLeft, Menu, Send, Pause, Square, ExternalLink, GraduationCap, BookMarked, Lightbulb, Edit3, Bot, Upload, Reply, Heart
+  MessageCircle, Phone, ArrowLeft, Menu, Send, Pause, Square, ExternalLink, GraduationCap, BookMarked, Lightbulb, Edit3, Bot, Upload, Reply, Heart, Ban
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
