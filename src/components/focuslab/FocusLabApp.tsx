@@ -1053,8 +1053,8 @@ export default function FocusLabApp() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {profileModalUserId && profileModalUserId !== userId && (
-          <UserProfileModal userId={profileModalUserId} currentUserId={userId!} onClose={() => setProfileModalUserId(null)} onSendFriendRequest={uid => { sendFriendRequest(uid); setProfileModalUserId(null); }} onOpenDM={uid => { setCurrentView('frilabs'); setProfileModalUserId(null); }} />
+        {profileModalUserId && profileModalUserId !== userId && !isBlocked(profileModalUserId) && (
+          <UserProfileModal userId={profileModalUserId} currentUserId={userId!} onClose={() => setProfileModalUserId(null)} onSendFriendRequest={uid => { sendFriendRequest(uid); setProfileModalUserId(null); }} onOpenDM={uid => { setCurrentView('frilabs'); setProfileModalUserId(null); }} onBlock={uid => { blockUser(uid); setProfileModalUserId(null); }} />
         )}
       </AnimatePresence>
     </div>
