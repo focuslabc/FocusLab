@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
-type ViewState = 'command_center' | 'red' | 'tasks' | 'challenges' | 'weekly_goals' | 'laboratory' | 'journal' | 'library' | 'journey' | 'coworking' | 'settings' | 'decoupling' | 'chatbot' | 'frilabs' | 'addiction';
+type ViewState = 'command_center' | 'red' | 'tasks' | 'challenges' | 'weekly_goals' | 'laboratory' | 'journal' | 'library' | 'journey' | 'coworking' | 'settings' | 'decoupling' | 'chatbot' | 'frilabs' | 'addiction' | 'memorial';
 
 const SYSTEM_CHALLENGES = [
   { id: 1, title: 'Jejum de Dopamina', icon: Brain, duration: '7 dias', days: 7, desc: 'Reduza estímulos artificiais para recuperar a sensibilidade dos receptores.' },
