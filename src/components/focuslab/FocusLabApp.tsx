@@ -167,6 +167,7 @@ const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, pr
     { id: 'journey', icon: Map, label: 'Modo Jornada' },
     { id: 'coworking', icon: Users, label: 'Co-working' },
     { id: 'frilabs', icon: Heart, label: 'FriLabs' },
+    { id: 'memorial', icon: Clock, label: 'Linhagem do Foco' },
     { id: 'chatbot', icon: Bot, label: 'Assistente IA' },
   ];
 
