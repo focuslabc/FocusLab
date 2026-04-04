@@ -12,7 +12,6 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
   const { profile, loading, updateProfile, uploadAvatar } = useProfile(userId);
   const { blockedList, unblockUser } = useBlockedUsers(userId);
   const [blockedProfiles, setBlockedProfiles] = useState<Record<string, any>>({});
-  const { profile, loading, updateProfile, uploadAvatar } = useProfile(userId);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [username, setUsername] = useState('');
