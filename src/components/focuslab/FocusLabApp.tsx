@@ -1037,9 +1037,6 @@ export default function FocusLabApp() {
         <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} onClickUser={uid => setProfileModalUserId(uid)} />
       )}
 
-      <AnimatePresence>
-        {chatbotOpen && !activeCoworkingRoom && <ChatbotPanel open={chatbotOpen} setOpen={setChatbotOpen} />}
-      </AnimatePresence>
 
       <AnimatePresence>
         {showOnboarding && <OnboardingTour onComplete={handleCompleteOnboarding} />}
