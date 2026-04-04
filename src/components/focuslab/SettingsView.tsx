@@ -19,6 +19,17 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
   const [initialized, setInitialized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch blocked user profiles
+  useEffect(() => {
+    if (blockedList.length === 0) return;
+    const ids = blockedList.map(b => b.blocked_id);
+    supabase.from('profiles').select('*').in('user_id', ids).then(({ data }) => {
+      const map: Record<string, any> = {};
+      (data || []).forEach(p => { map[p.user_id] = p; });
+      setBlockedProfiles(map);
+    });
+  }, [blockedList]);
+
   if (profile && !initialized) {
     setDisplayName(profile.display_name || '');
     setBio(profile.bio || '');
