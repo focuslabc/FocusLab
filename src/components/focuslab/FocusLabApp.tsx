@@ -831,7 +831,7 @@ export default function FocusLabApp() {
           </div>
         </div>
       );
-      case 'settings': return <SettingsView userId={userId} darkMode={darkMode} setDarkMode={setDarkMode} />;
+      case 'settings': return <SettingsView userId={userId} darkMode={darkMode} setDarkMode={setDarkMode} blockedIds={blockedIds} onUnblock={(uid) => { import('@/hooks/useSupabaseData').then(m => { /* handled via prop */ }); }} />;
       case 'journey': return <JourneyView redTasks={redTasks} challengeProgress={challengeProgress} streak={streak} onShareStats={() => setShowShareStats(true)} />;
       case 'decoupling': return <DecouplingView />;
       case 'tasks': return <TasksView userId={userId!} />;
