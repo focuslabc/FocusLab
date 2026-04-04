@@ -61,6 +61,7 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
               { id: 'profile' as const, icon: User, label: 'Perfil' },
               { id: 'app' as const, icon: Monitor, label: 'Sistema' },
               { id: 'theme' as const, icon: Palette, label: 'Tema' },
+              { id: 'blocked' as const, icon: Ban, label: 'Bloqueados' },
               { id: 'support' as const, icon: HelpCircle, label: 'Suporte' },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
