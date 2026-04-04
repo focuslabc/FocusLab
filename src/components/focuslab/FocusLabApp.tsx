@@ -10,15 +10,16 @@ import { AddictionView } from './AddictionView';
 import { OnboardingTour } from './OnboardingTour';
 import { ShareableStats } from './ShareableStats';
 import { UserProfileModal } from './UserProfileModal';
+import { MemorialView } from './MemorialView';
 import { useAuth } from '@/hooks/useAuth';
-import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries, useProjects, useLibraryContent, useCoworkingRooms, useIsAdmin, useProfile, useCoworkingMessages, useDailyStreaks, useFriendships, checkUsernameAvailable } from '@/hooks/useSupabaseData';
+import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries, useProjects, useLibraryContent, useCoworkingRooms, useIsAdmin, useProfile, useCoworkingMessages, useDailyStreaks, useFriendships, checkUsernameAvailable, useBlockedUsers } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 import focusLabLogo from '@/assets/focuslab-logo.png';
 import {
   LayoutDashboard, Atom, Activity, Target, BarChart3, Settings, Check, Play, ArrowRight,
   Brain, Dumbbell, BookOpen, Plus, Lock, Flame, Droplets, Smartphone, Clock,
   X, Zap, Users, Map, Shield, Video, FileText, Calendar, Trash2, Save, LogOut, Wind, Loader2,
-  MessageCircle, Phone, ArrowLeft, Menu, Send, Pause, Square, ExternalLink, GraduationCap, BookMarked, Lightbulb, Edit3, Bot, Upload, Reply, Heart
+  MessageCircle, Phone, ArrowLeft, Menu, Send, Pause, Square, ExternalLink, GraduationCap, BookMarked, Lightbulb, Edit3, Bot, Upload, Reply, Heart, Ban
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -26,7 +27,7 @@ import { toast } from 'sonner';
 
 function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }
 
-type ViewState = 'command_center' | 'red' | 'tasks' | 'challenges' | 'weekly_goals' | 'laboratory' | 'journal' | 'library' | 'journey' | 'coworking' | 'settings' | 'decoupling' | 'chatbot' | 'frilabs' | 'addiction';
+type ViewState = 'command_center' | 'red' | 'tasks' | 'challenges' | 'weekly_goals' | 'laboratory' | 'journal' | 'library' | 'journey' | 'coworking' | 'settings' | 'decoupling' | 'chatbot' | 'frilabs' | 'addiction' | 'memorial';
 
 const SYSTEM_CHALLENGES = [
   { id: 1, title: 'Jejum de Dopamina', icon: Brain, duration: '7 dias', days: 7, desc: 'Reduza estímulos artificiais para recuperar a sensibilidade dos receptores.' },
@@ -166,6 +167,7 @@ const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, pr
     { id: 'journey', icon: Map, label: 'Modo Jornada' },
     { id: 'coworking', icon: Users, label: 'Co-working' },
     { id: 'frilabs', icon: Heart, label: 'FriLabs' },
+    { id: 'memorial', icon: Clock, label: 'Linhagem do Foco' },
     { id: 'chatbot', icon: Bot, label: 'Assistente IA' },
   ];
 
@@ -436,8 +438,9 @@ const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom
 };
 
 // --- Chat Overlay ---
-const ChatOverlay = ({ room, userId, userName, userAvatar, onClose, onClickUser }: { room: any; userId: string; userName: string; userAvatar?: string; onClose: () => void; onClickUser?: (uid: string) => void }) => {
-  const { messages, sendMessage } = useCoworkingMessages(room.id);
+const ChatOverlay = ({ room, userId, userName, userAvatar, onClose, onClickUser, blockedIds = [] }: { room: any; userId: string; userName: string; userAvatar?: string; onClose: () => void; onClickUser?: (uid: string) => void; blockedIds?: string[] }) => {
+  const { messages: rawMessages, sendMessage } = useCoworkingMessages(room.id);
+  const messages = rawMessages.filter((m: any) => !blockedIds.includes(m.user_id));
   const [chatInput, setChatInput] = useState('');
   const [replyTo, setReplyTo] = useState<any>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -754,6 +757,7 @@ export default function FocusLabApp() {
   const { profile } = useProfile(userId);
   const { streak, weeklyData, recordDay } = useDailyStreaks(userId);
   const { sendRequest: sendFriendRequest } = useFriendships(userId);
+  const { blockedIds, blockUser, isBlocked } = useBlockedUsers(userId);
 
   // Record streak when RED tasks change
   useEffect(() => {
@@ -828,7 +832,7 @@ export default function FocusLabApp() {
           </div>
         </div>
       );
-      case 'settings': return <SettingsView userId={userId} darkMode={darkMode} setDarkMode={setDarkMode} />;
+      case 'settings': return <SettingsView userId={userId} darkMode={darkMode} setDarkMode={setDarkMode} blockedIds={blockedIds} onUnblock={(uid) => { import('@/hooks/useSupabaseData').then(m => { /* handled via prop */ }); }} />;
       case 'journey': return <JourneyView redTasks={redTasks} challengeProgress={challengeProgress} streak={streak} onShareStats={() => setShowShareStats(true)} />;
       case 'decoupling': return <DecouplingView />;
       case 'tasks': return <TasksView userId={userId!} />;
@@ -838,6 +842,7 @@ export default function FocusLabApp() {
       case 'library': return <LibraryView isAdmin={isAdmin} />;
       case 'frilabs': return <FriLabsView userId={userId!} />;
       case 'addiction': return <AddictionView userId={userId!} />;
+      case 'memorial': return <MemorialView userId={userId!} isPremium={profile?.is_premium || false} />;
       case 'chatbot': return <ChatbotPanel />;
       case 'challenges': {
         const completedChallenges = challengeProgress.filter(p => !p.is_active && p.completed_at).length;
@@ -1034,7 +1039,7 @@ export default function FocusLabApp() {
       <main className="flex-1 overflow-hidden min-w-0 md:mt-0 mt-14">{renderView()}</main>
 
       {activeCoworkingRoom && activeCoworkingRoom.room_type === 'chat' && (
-        <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} onClickUser={uid => setProfileModalUserId(uid)} />
+        <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} onClickUser={uid => setProfileModalUserId(uid)} blockedIds={blockedIds} />
       )}
 
 
@@ -1049,8 +1054,8 @@ export default function FocusLabApp() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {profileModalUserId && profileModalUserId !== userId && (
-          <UserProfileModal userId={profileModalUserId} currentUserId={userId!} onClose={() => setProfileModalUserId(null)} onSendFriendRequest={uid => { sendFriendRequest(uid); setProfileModalUserId(null); }} onOpenDM={uid => { setCurrentView('frilabs'); setProfileModalUserId(null); }} />
+        {profileModalUserId && profileModalUserId !== userId && !isBlocked(profileModalUserId) && (
+          <UserProfileModal userId={profileModalUserId} currentUserId={userId!} onClose={() => setProfileModalUserId(null)} onSendFriendRequest={uid => { sendFriendRequest(uid); setProfileModalUserId(null); }} onOpenDM={uid => { setCurrentView('frilabs'); setProfileModalUserId(null); }} onBlock={uid => { blockUser(uid); setProfileModalUserId(null); }} />
         )}
       </AnimatePresence>
     </div>

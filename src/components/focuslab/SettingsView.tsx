@@ -1,19 +1,33 @@
-import React, { useState, useRef } from 'react';
-import { User, Moon, Sun, Monitor, Camera, Mail, Phone, Instagram, ExternalLink, HelpCircle, Palette } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { User, Moon, Sun, Monitor, Camera, Mail, Phone, Instagram, ExternalLink, HelpCircle, Palette, Ban } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useProfile, useIsAdmin } from '@/hooks/useSupabaseData';
+import { useProfile, useIsAdmin, useBlockedUsers } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
 import { ThemeEditor, ThemeSelector } from './ThemeEditor';
+import { supabase } from '@/integrations/supabase/client';
 
-export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: string; darkMode: boolean; setDarkMode: (v: boolean) => void }) {
+export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: externalBlockedIds, onUnblock: externalOnUnblock }: { userId?: string; darkMode: boolean; setDarkMode: (v: boolean) => void; blockedIds?: string[]; onUnblock?: (uid: string) => void }) {
   const { isAdmin } = useIsAdmin(userId);
-  const [activeTab, setActiveTab] = useState<'profile' | 'app' | 'support' | 'theme'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'app' | 'support' | 'theme' | 'blocked'>('profile');
   const { profile, loading, updateProfile, uploadAvatar } = useProfile(userId);
+  const { blockedList, unblockUser } = useBlockedUsers(userId);
+  const [blockedProfiles, setBlockedProfiles] = useState<Record<string, any>>({});
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [username, setUsername] = useState('');
   const [initialized, setInitialized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch blocked user profiles
+  useEffect(() => {
+    if (blockedList.length === 0) return;
+    const ids = blockedList.map(b => b.blocked_id);
+    supabase.from('profiles').select('*').in('user_id', ids).then(({ data }) => {
+      const map: Record<string, any> = {};
+      (data || []).forEach(p => { map[p.user_id] = p; });
+      setBlockedProfiles(map);
+    });
+  }, [blockedList]);
 
   if (profile && !initialized) {
     setDisplayName(profile.display_name || '');
@@ -47,6 +61,7 @@ export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: strin
               { id: 'profile' as const, icon: User, label: 'Perfil' },
               { id: 'app' as const, icon: Monitor, label: 'Sistema' },
               { id: 'theme' as const, icon: Palette, label: 'Tema' },
+              { id: 'blocked' as const, icon: Ban, label: 'Bloqueados' },
               { id: 'support' as const, icon: HelpCircle, label: 'Suporte' },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -149,6 +164,33 @@ export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: strin
               </div>
             ) : activeTab === 'theme' ? (
               isAdmin ? <ThemeEditor /> : <ThemeSelector />
+            ) : activeTab === 'blocked' ? (
+              <div className="space-y-6 max-w-2xl">
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8">
+                  <h2 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2"><Ban className="w-5 h-5 text-red-500" /> Usuários Bloqueados</h2>
+                  {blockedList.length === 0 ? (
+                    <p className="text-zinc-500 text-sm">Nenhum usuário bloqueado.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {blockedList.map(b => {
+                        const p = blockedProfiles[b.blocked_id];
+                        return (
+                          <div key={b.id} className="flex items-center gap-3 p-3 bg-black/20 border border-white/5 rounded-xl">
+                            {p?.avatar_url ? <img src={p.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" /> : <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500">{(p?.display_name || '?')[0]}</div>}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white text-sm font-medium truncate">{p?.display_name || 'Operador'}</p>
+                              {p?.username && <p className="text-zinc-500 text-xs">@{p.username}</p>}
+                            </div>
+                            <button onClick={() => unblockUser(b.blocked_id)} className="px-3 py-1.5 bg-zinc-800 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 rounded-lg text-xs font-bold transition-colors">
+                              Desbloquear
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : null}
           </motion.div>
         </div>
