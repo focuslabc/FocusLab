@@ -756,6 +756,7 @@ export default function FocusLabApp() {
   const { profile } = useProfile(userId);
   const { streak, weeklyData, recordDay } = useDailyStreaks(userId);
   const { sendRequest: sendFriendRequest } = useFriendships(userId);
+  const { blockedIds, blockUser, isBlocked } = useBlockedUsers(userId);
 
   // Record streak when RED tasks change
   useEffect(() => {
