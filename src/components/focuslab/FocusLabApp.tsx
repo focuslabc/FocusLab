@@ -740,7 +740,7 @@ export default function FocusLabApp() {
   const [currentView, setCurrentView] = useState<ViewState>('command_center');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('focuslab-theme') !== 'light');
-  const [chatbotOpen, setChatbotOpen] = useState(false);
+  
   const [activeCoworkingRoom, setActiveCoworkingRoom] = useState<any>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showShareStats, setShowShareStats] = useState(false);
