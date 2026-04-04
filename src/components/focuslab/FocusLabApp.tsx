@@ -10,8 +10,9 @@ import { AddictionView } from './AddictionView';
 import { OnboardingTour } from './OnboardingTour';
 import { ShareableStats } from './ShareableStats';
 import { UserProfileModal } from './UserProfileModal';
+import { MemorialView } from './MemorialView';
 import { useAuth } from '@/hooks/useAuth';
-import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries, useProjects, useLibraryContent, useCoworkingRooms, useIsAdmin, useProfile, useCoworkingMessages, useDailyStreaks, useFriendships, checkUsernameAvailable } from '@/hooks/useSupabaseData';
+import { useRedTasks, useObjective, useGeneralTasks, useChallengeProgress, useJournalEntries, useProjects, useLibraryContent, useCoworkingRooms, useIsAdmin, useProfile, useCoworkingMessages, useDailyStreaks, useFriendships, checkUsernameAvailable, useBlockedUsers } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 import focusLabLogo from '@/assets/focuslab-logo.png';
 import {
