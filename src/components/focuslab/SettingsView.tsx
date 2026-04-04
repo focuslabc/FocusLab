@@ -1,13 +1,17 @@
-import React, { useState, useRef } from 'react';
-import { User, Moon, Sun, Monitor, Camera, Mail, Phone, Instagram, ExternalLink, HelpCircle, Palette } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { User, Moon, Sun, Monitor, Camera, Mail, Phone, Instagram, ExternalLink, HelpCircle, Palette, Ban } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useProfile, useIsAdmin } from '@/hooks/useSupabaseData';
+import { useProfile, useIsAdmin, useBlockedUsers } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
 import { ThemeEditor, ThemeSelector } from './ThemeEditor';
+import { supabase } from '@/integrations/supabase/client';
 
-export function SettingsView({ userId, darkMode, setDarkMode }: { userId?: string; darkMode: boolean; setDarkMode: (v: boolean) => void }) {
+export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: externalBlockedIds, onUnblock: externalOnUnblock }: { userId?: string; darkMode: boolean; setDarkMode: (v: boolean) => void; blockedIds?: string[]; onUnblock?: (uid: string) => void }) {
   const { isAdmin } = useIsAdmin(userId);
-  const [activeTab, setActiveTab] = useState<'profile' | 'app' | 'support' | 'theme'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'app' | 'support' | 'theme' | 'blocked'>('profile');
+  const { profile, loading, updateProfile, uploadAvatar } = useProfile(userId);
+  const { blockedList, unblockUser } = useBlockedUsers(userId);
+  const [blockedProfiles, setBlockedProfiles] = useState<Record<string, any>>({});
   const { profile, loading, updateProfile, uploadAvatar } = useProfile(userId);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
