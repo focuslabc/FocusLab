@@ -180,6 +180,7 @@ const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, pr
       <div className="p-4 lg:p-6 flex items-center gap-3 mb-2">
         {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" /> : <img src={focusLabLogo} alt="FocusLab" className="w-8 h-8 flex-shrink-0" />}
         <span className="text-sm font-bold tracking-[0.2em] uppercase text-white truncate">{profile?.display_name || 'Focus Lab'}</span>
+        {plan && plan !== 'free' && <PlanBadge plan={plan as any} size="sm" />}
       </div>
       <nav className="flex-1 px-2 lg:px-4 space-y-1 overflow-y-auto">
         {menuItems.map(item => (
