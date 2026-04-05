@@ -594,6 +594,7 @@ export type Database = {
           amount: number | null
           created_at: string
           customer_email: string | null
+          expires_at: string | null
           id: string
           kiwify_order_id: string
           offer_id: string | null
@@ -606,6 +607,7 @@ export type Database = {
           amount?: number | null
           created_at?: string
           customer_email?: string | null
+          expires_at?: string | null
           id?: string
           kiwify_order_id: string
           offer_id?: string | null
@@ -618,6 +620,7 @@ export type Database = {
           amount?: number | null
           created_at?: string
           customer_email?: string | null
+          expires_at?: string | null
           id?: string
           kiwify_order_id?: string
           offer_id?: string | null
