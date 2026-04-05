@@ -490,6 +490,7 @@ export type Database = {
           id: string
           is_premium: boolean | null
           onboarding_completed: boolean | null
+          plan: string
           updated_at: string
           user_id: string
           username: string | null
@@ -502,6 +503,7 @@ export type Database = {
           id?: string
           is_premium?: boolean | null
           onboarding_completed?: boolean | null
+          plan?: string
           updated_at?: string
           user_id: string
           username?: string | null
@@ -514,6 +516,7 @@ export type Database = {
           id?: string
           is_premium?: boolean | null
           onboarding_completed?: boolean | null
+          plan?: string
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -581,6 +584,45 @@ export type Database = {
           id?: string
           position?: number
           text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          amount: number | null
+          created_at: string
+          customer_email: string | null
+          id: string
+          kiwify_order_id: string
+          offer_id: string | null
+          plan: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          customer_email?: string | null
+          id?: string
+          kiwify_order_id: string
+          offer_id?: string | null
+          plan?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          customer_email?: string | null
+          id?: string
+          kiwify_order_id?: string
+          offer_id?: string | null
+          plan?: string
+          status?: string
           updated_at?: string
           user_id?: string
         }
