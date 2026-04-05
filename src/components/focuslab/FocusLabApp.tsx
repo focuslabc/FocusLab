@@ -155,7 +155,7 @@ const AuthScreen = () => {
 };
 
 // --- Sidebar ---
-const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, profile }: { currentView: ViewState; setView: (v: ViewState) => void; onLogout: () => void; mobileOpen: boolean; setMobileOpen: (v: boolean) => void; profile: any }) => {
+const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, profile, plan }: { currentView: ViewState; setView: (v: ViewState) => void; onLogout: () => void; mobileOpen: boolean; setMobileOpen: (v: boolean) => void; profile: any; plan?: string }) => {
   const menuItems = [
     { id: 'command_center', icon: LayoutDashboard, label: 'Centro de Comando' },
     { id: 'red', icon: Target, label: 'R.E.D. (Núcleo)' },
@@ -172,6 +172,7 @@ const Sidebar = ({ currentView, setView, onLogout, mobileOpen, setMobileOpen, pr
     { id: 'frilabs', icon: Heart, label: 'FriLabs' },
     { id: 'memorial', icon: Clock, label: 'Linhagem do Foco' },
     { id: 'chatbot', icon: Bot, label: 'Assistente IA' },
+    { id: 'plans', icon: Crown, label: 'Planos' },
   ];
 
   const sidebarContent = (
