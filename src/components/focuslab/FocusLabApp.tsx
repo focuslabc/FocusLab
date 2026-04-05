@@ -1050,12 +1050,12 @@ export default function FocusLabApp() {
         <img src={focusLabLogo} alt="FocusLab" className="w-6 h-6" />
         <span className="text-sm font-bold text-white tracking-wider uppercase">Focus Lab</span>
       </div>
-      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} />
-      <main className="flex-1 overflow-hidden min-w-0 md:mt-0 mt-14">{renderView()}</main>
-
-      {activeCoworkingRoom && activeCoworkingRoom.room_type === 'chat' && (
-        <ChatOverlay room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} onClickUser={uid => setProfileModalUserId(uid)} blockedIds={blockedIds} />
-      )}
+      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} profile={profile} plan={plan} />
+      <main className="flex-1 overflow-hidden min-w-0 md:mt-0 mt-14">
+        {activeCoworkingRoom && activeCoworkingRoom.room_type === 'chat' ? (
+          <ChatPanel room={activeCoworkingRoom} userId={userId!} userName={profile?.display_name || 'Operador'} userAvatar={profile?.avatar_url} onClose={() => setActiveCoworkingRoom(null)} onClickUser={uid => setProfileModalUserId(uid)} blockedIds={blockedIds} />
+        ) : renderView()}
+      </main>
 
 
       <AnimatePresence>
