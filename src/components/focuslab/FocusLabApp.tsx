@@ -768,6 +768,7 @@ export default function FocusLabApp() {
   const { progress: challengeProgress, startChallenge, pauseChallenge, stopChallenge, getDaysElapsed } = useChallengeProgress(userId);
   const { isAdmin } = useIsAdmin(userId);
   const { profile } = useProfile(userId);
+  const { plan } = usePlanAccess(userId);
   const { streak, weeklyData, recordDay } = useDailyStreaks(userId);
   const { sendRequest: sendFriendRequest } = useFriendships(userId);
   const { blockedIds, blockUser, isBlocked } = useBlockedUsers(userId);
