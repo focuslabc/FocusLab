@@ -858,6 +858,7 @@ export default function FocusLabApp() {
       case 'addiction': return <AddictionView userId={userId!} />;
       case 'memorial': return <MemorialView userId={userId!} isPremium={profile?.is_premium || false} />;
       case 'chatbot': return <ChatbotPanel />;
+      case 'plans': return <PlansView currentPlan={plan} />;
       case 'challenges': {
         const completedChallenges = challengeProgress.filter(p => !p.is_active && p.completed_at).length;
         return (
