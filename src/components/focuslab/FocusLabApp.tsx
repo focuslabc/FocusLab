@@ -442,8 +442,8 @@ const CoworkingView = ({ userId, userName, userAvatar, activeRoom, setActiveRoom
   );
 };
 
-// --- Chat Overlay ---
-const ChatOverlay = ({ room, userId, userName, userAvatar, onClose, onClickUser, blockedIds = [] }: { room: any; userId: string; userName: string; userAvatar?: string; onClose: () => void; onClickUser?: (uid: string) => void; blockedIds?: string[] }) => {
+// --- Chat Overlay (full panel in coworking) ---
+const ChatPanel = ({ room, userId, userName, userAvatar, onClose, onClickUser, blockedIds = [] }: { room: any; userId: string; userName: string; userAvatar?: string; onClose: () => void; onClickUser?: (uid: string) => void; blockedIds?: string[] }) => {
   const { messages: rawMessages, sendMessage } = useCoworkingMessages(room.id);
   const messages = rawMessages.filter((m: any) => !blockedIds.includes(m.user_id));
   const [chatInput, setChatInput] = useState('');
@@ -457,28 +457,36 @@ const ChatOverlay = ({ room, userId, userName, userAvatar, onClose, onClickUser,
     setChatInput(''); setReplyTo(null);
   };
 
+  const formatTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-[320px] sm:w-[380px] h-[460px] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-      <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-3 bg-zinc-900/50">
-        <MessageCircle className="w-5 h-5 text-blue-400" /><h3 className="text-white font-bold text-sm flex-1 truncate">{room.name}</h3>
-        <button onClick={onClose} className="px-3 py-1 bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-lg text-xs font-bold transition-colors">Sair</button>
+    <div className="h-full w-full flex flex-col bg-zinc-950">
+      <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-3 bg-zinc-900/50 shrink-0">
+        <MessageCircle className="w-5 h-5 text-blue-400" />
+        <h3 className="text-white font-bold text-sm flex-1 truncate">{room.name}</h3>
+        <button onClick={onClose} className="px-4 py-1.5 bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded-lg text-xs font-bold transition-colors">Sair do Bate-papo</button>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {messages.length === 0 && <p className="text-center text-zinc-600 text-sm py-8">Nenhuma mensagem ainda.</p>}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.length === 0 && <p className="text-center text-zinc-600 text-sm py-8">Nenhuma mensagem ainda. Seja o primeiro!</p>}
         {messages.map((msg: any) => {
           const replyMsg = msg.reply_to ? messages.find((m: any) => m.id === msg.reply_to) : null;
+          const isOwn = msg.user_id === userId;
           return (
-            <div key={msg.id} className={`flex ${msg.user_id === userId ? 'justify-end' : 'justify-start'} group`}>
-              <div className="max-w-[85%]">
-                {replyMsg && <div className="text-[10px] text-zinc-600 bg-zinc-900/50 px-2 py-1 rounded-t-lg border-l-2 border-zinc-700 mb-0.5 truncate">↳ {replyMsg.user_name}: {replyMsg.content?.slice(0, 40)}</div>}
-                <div className={`px-3 py-2 rounded-xl text-sm ${msg.user_id === userId ? 'bg-red-900/30 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
-                  {msg.user_id !== userId && (
-                    <div className="flex items-center gap-2 mb-1 cursor-pointer" onClick={() => onClickUser?.(msg.user_id)}>
-                      {msg.avatar_url && <img src={msg.avatar_url} alt="" className="w-4 h-4 rounded-full object-cover" />}
-                      <p className="text-xs text-zinc-500 font-bold hover:text-red-400 transition-colors">{msg.user_name}</p>
+            <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group`}>
+              <div className="max-w-[75%]">
+                {replyMsg && <div className="text-[10px] text-zinc-600 bg-zinc-900/50 px-2 py-1 rounded-t-lg border-l-2 border-zinc-700 mb-0.5 truncate">↳ {replyMsg.user_name}: {replyMsg.content?.slice(0, 50)}</div>}
+                <div className={`px-4 py-2.5 rounded-2xl text-sm ${isOwn ? 'bg-red-900/30 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
+                  {!isOwn && (
+                    <div className="flex items-center gap-2 mb-1.5 cursor-pointer" onClick={() => onClickUser?.(msg.user_id)}>
+                      {msg.avatar_url ? <img src={msg.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" /> : <div className="w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center text-[10px] text-zinc-400 font-bold">{(msg.user_name || '?')[0]}</div>}
+                      <p className="text-xs text-zinc-400 font-bold hover:text-red-400 transition-colors">{msg.user_name}</p>
                     </div>
                   )}
-                  {msg.content}
+                  <p>{msg.content}</p>
+                  <p className={`text-[10px] mt-1 ${isOwn ? 'text-red-300/50' : 'text-zinc-500'}`}>{formatTime(msg.created_at)}</p>
                 </div>
                 <button onClick={() => setReplyTo(msg)} className="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-600 hover:text-zinc-400 transition-all mt-0.5"><Reply className="w-3 h-3 inline mr-1" />Responder</button>
               </div>
@@ -488,16 +496,16 @@ const ChatOverlay = ({ room, userId, userName, userAvatar, onClose, onClickUser,
         <div ref={chatEndRef} />
       </div>
       {replyTo && (
-        <div className="px-3 py-2 border-t border-zinc-800 bg-zinc-900/50 flex items-center gap-2">
+        <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/50 flex items-center gap-2 shrink-0">
           <span className="text-xs text-zinc-500 flex-1 truncate">Respondendo a <span className="text-white font-bold">{replyTo.user_name}</span></span>
           <button onClick={() => setReplyTo(null)} className="text-zinc-500 hover:text-white"><X className="w-3 h-3" /></button>
         </div>
       )}
-      <div className="p-3 border-t border-zinc-800">
+      <div className="p-3 border-t border-zinc-800 shrink-0">
         <div className="flex gap-2">
           <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()}
-            placeholder="Mensagem..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-red-600" />
-          <button onClick={handleSend} className="p-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl transition-colors"><Send className="w-4 h-4" /></button>
+            placeholder="Mensagem..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-red-600" />
+          <button onClick={handleSend} className="p-3 bg-red-900 hover:bg-red-800 text-white rounded-xl transition-colors"><Send className="w-5 h-5" /></button>
         </div>
       </div>
     </div>
