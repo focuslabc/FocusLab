@@ -102,6 +102,9 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ ok: true, message: "Subscription saved, user not found yet" }), { status: 200 });
       }
 
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+      
       // Save subscription record
       await supabase.from("subscriptions").upsert({
         kiwify_order_id: orderId,
@@ -110,6 +113,7 @@ Deno.serve(async (req) => {
         status: "active",
         offer_id: offerId,
         customer_email: customerEmail,
+        expires_at: expiresAt.toISOString(),
       }, { onConflict: "kiwify_order_id" });
 
       // Update user profile with the plan
