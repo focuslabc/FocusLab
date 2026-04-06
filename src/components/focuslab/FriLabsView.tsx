@@ -1,21 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Search, Send, ArrowLeft, UserPlus, UserCheck, X, Loader2, MessageCircle, Heart } from 'lucide-react';
+import { Users, Search, Send, ArrowLeft, UserPlus, UserCheck, X, Loader2, MessageCircle, Heart, Clock, Bell } from 'lucide-react';
 import { useFriendships, usePrivateMessages, searchUsers } from '@/hooks/useSupabaseData';
 import { supabase } from '@/integrations/supabase/client';
 
 export function FriLabsView({ userId }: { userId: string }) {
-  const { friends, pendingRequests, loading, sendRequest, acceptRequest, declineRequest, removeFriend, getFriendUserId } = useFriendships(userId);
+  const { friends, pendingRequests, sentRequests, loading, sendRequest, acceptRequest, declineRequest, removeFriend, getFriendUserId } = useFriendships(userId);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [activeDM, setActiveDM] = useState<string | null>(null);
   const [dmProfile, setDmProfile] = useState<any>(null);
-  const [tab, setTab] = useState<'friends' | 'chats'>('chats');
+  const [tab, setTab] = useState<'chats' | 'friends' | 'requests'>('chats');
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
-
-  // Collect unique DM partner IDs from friends
-  const friendUserIds = friends.map(f => getFriendUserId(f));
 
   const handleSearch = (q: string) => {
     setSearchQuery(q);
@@ -43,6 +40,8 @@ export function FriLabsView({ userId }: { userId: string }) {
     if (accepted) return 'accepted';
     const pending = pendingRequests.find(f => f.requester_id === uid);
     if (pending) return 'pending';
+    const sent = sentRequests.find(f => f.addressee_id === uid);
+    if (sent) return 'sent';
     return 'none';
   };
 
@@ -54,12 +53,20 @@ export function FriLabsView({ userId }: { userId: string }) {
       <p className="text-zinc-500 font-medium mb-4 text-sm sm:text-base">Encontre amigos e converse. <span className="text-zinc-600">({friends.length} amigo{friends.length !== 1 ? 's' : ''})</span></p>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
         <button onClick={() => setTab('chats')} className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 ${tab === 'chats' ? 'bg-red-900 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
           <MessageCircle className="w-4 h-4" /> Conversas
         </button>
         <button onClick={() => setTab('friends')} className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 ${tab === 'friends' ? 'bg-red-900 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
           <Users className="w-4 h-4" /> Amigos ({friends.length})
+        </button>
+        <button onClick={() => setTab('requests')} className={`px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 relative ${tab === 'requests' ? 'bg-red-900 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}>
+          <Bell className="w-4 h-4" /> Pedidos
+          {(pendingRequests.length + sentRequests.length) > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 rounded-full text-[10px] font-bold flex items-center justify-center text-white">
+              {pendingRequests.length + sentRequests.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -84,6 +91,8 @@ export function FriLabsView({ userId }: { userId: string }) {
                     <button onClick={() => { setActiveDM(u.user_id); setSearchResults([]); setSearchQuery(''); }} className="px-3 py-1.5 bg-blue-900/30 text-blue-400 rounded-lg text-xs font-bold"><MessageCircle className="w-3 h-3 inline mr-1" />Chat</button>
                   ) : status === 'pending' ? (
                     <span className="text-yellow-500 text-xs font-bold">Pendente</span>
+                  ) : status === 'sent' ? (
+                    <span className="text-blue-400 text-xs font-bold flex items-center gap-1"><Clock className="w-3 h-3" /> Enviado</span>
                   ) : (
                     <button onClick={() => sendRequest(u.user_id)} className="px-3 py-1.5 bg-red-900/30 text-red-400 rounded-lg text-xs font-bold"><UserPlus className="w-3 h-3 inline mr-1" />Adicionar</button>
                   )}
@@ -94,20 +103,36 @@ export function FriLabsView({ userId }: { userId: string }) {
         )}
       </div>
 
-      {/* Pending Requests */}
-      {pendingRequests.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-3">Solicitações Pendentes ({pendingRequests.length})</h3>
-          <div className="space-y-2">
-            {pendingRequests.map(req => (
-              <PendingRequestCard key={req.id} request={req} onAccept={() => acceptRequest(req.id)} onDecline={() => declineRequest(req.id)} />
-            ))}
+      {tab === 'requests' ? (
+        <div className="space-y-6">
+          {/* Received */}
+          <div>
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-3">Recebidos ({pendingRequests.length})</h3>
+            {pendingRequests.length === 0 ? (
+              <p className="text-zinc-600 text-sm py-4">Nenhuma solicitação recebida.</p>
+            ) : (
+              <div className="space-y-2">
+                {pendingRequests.map(req => (
+                  <PendingRequestCard key={req.id} request={req} onAccept={() => acceptRequest(req.id)} onDecline={() => declineRequest(req.id)} />
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Sent */}
+          <div>
+            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-3">Enviados ({sentRequests.length})</h3>
+            {sentRequests.length === 0 ? (
+              <p className="text-zinc-600 text-sm py-4">Nenhuma solicitação enviada.</p>
+            ) : (
+              <div className="space-y-2">
+                {sentRequests.map(req => (
+                  <SentRequestCard key={req.id} request={req} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      )}
-
-      {tab === 'chats' ? (
-        /* DM List */
+      ) : tab === 'chats' ? (
         <div>
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-3">Conversas Privadas</h3>
           {loading ? <Loader2 className="w-8 h-8 text-red-500 animate-spin mx-auto" /> :
@@ -123,7 +148,6 @@ export function FriLabsView({ userId }: { userId: string }) {
             )}
         </div>
       ) : (
-        /* Friends List */
         <div>
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-3">Amigos ({friends.length})</h3>
           {loading ? <Loader2 className="w-8 h-8 text-red-500 animate-spin mx-auto" /> :
@@ -176,6 +200,21 @@ function PendingRequestCard({ request, onAccept, onDecline }: { request: any; on
   );
 }
 
+function SentRequestCard({ request }: { request: any }) {
+  const [profile, setProfile] = useState<any>(null);
+  useEffect(() => {
+    supabase.from('profiles').select('*').eq('user_id', request.addressee_id).maybeSingle().then(({ data }) => setProfile(data));
+  }, [request.addressee_id]);
+
+  return (
+    <div className="flex items-center gap-3 p-3 bg-black/20 border border-blue-900/20 rounded-xl">
+      {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" /> : <div className="w-8 h-8 rounded-full bg-zinc-800" />}
+      <div className="flex-1 min-w-0"><p className="text-white text-sm font-medium truncate">{profile?.display_name || 'Operador'}</p>{profile?.username && <p className="text-zinc-500 text-xs">@{profile.username}</p>}</div>
+      <span className="text-blue-400 text-xs font-bold flex items-center gap-1"><Clock className="w-3 h-3" /> Aguardando</span>
+    </div>
+  );
+}
+
 function FriendCard({ friendUserId, onOpenDM, onRemove }: { friendUserId: string; onOpenDM: (uid: string) => void; onRemove: () => void }) {
   const [profile, setProfile] = useState<any>(null);
   useEffect(() => {
@@ -223,8 +262,13 @@ function DMChat({ userId, otherUserId, otherProfile, onBack }: { userId: string;
           return (
             <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} gap-2`}>
               {!isMine && (senderProfile?.avatar_url ? <img src={senderProfile.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover mt-1 shrink-0" /> : <div className="w-6 h-6 rounded-full bg-zinc-800 mt-1 shrink-0" />)}
-              <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${isMine ? 'bg-red-900/30 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
-                {msg.content}
+              <div className={`max-w-[80%]`}>
+                <div className={`px-3 py-2 rounded-xl text-sm ${isMine ? 'bg-red-900/30 text-white rounded-br-sm' : 'bg-zinc-800 text-zinc-200 rounded-bl-sm'}`}>
+                  {msg.content}
+                </div>
+                <p className={`text-[10px] text-zinc-600 mt-0.5 ${isMine ? 'text-right' : 'text-left'}`}>
+                  {new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </p>
               </div>
               {isMine && (myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover mt-1 shrink-0" /> : <div className="w-6 h-6 rounded-full bg-zinc-800 mt-1 shrink-0" />)}
             </div>

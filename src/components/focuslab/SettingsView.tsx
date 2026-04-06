@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Moon, Sun, Monitor, Camera, Mail, Phone, Instagram, ExternalLink, HelpCircle, Palette, Ban } from 'lucide-react';
+import { User, Moon, Sun, Monitor, Camera, Mail, Phone, Instagram, ExternalLink, HelpCircle, Ban, Download, Smartphone, Shield, CheckCircle, Plus, Trash2, Crown } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useProfile, useIsAdmin, useBlockedUsers } from '@/hooks/useSupabaseData';
+import { useProfile, useIsAdmin, useBlockedUsers, useVerifiedBadges } from '@/hooks/useSupabaseData';
 import { toast } from 'sonner';
 import { ThemeEditor, ThemeSelector } from './ThemeEditor';
 import { supabase } from '@/integrations/supabase/client';
 
 export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: externalBlockedIds, onUnblock: externalOnUnblock }: { userId?: string; darkMode: boolean; setDarkMode: (v: boolean) => void; blockedIds?: string[]; onUnblock?: (uid: string) => void }) {
   const { isAdmin } = useIsAdmin(userId);
-  const [activeTab, setActiveTab] = useState<'profile' | 'app' | 'support' | 'theme' | 'blocked'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'app' | 'support' | 'blocked'>('profile');
   const { profile, loading, updateProfile, uploadAvatar } = useProfile(userId);
   const { blockedList, unblockUser } = useBlockedUsers(userId);
   const [blockedProfiles, setBlockedProfiles] = useState<Record<string, any>>({});
@@ -18,7 +18,6 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
   const [initialized, setInitialized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch blocked user profiles
   useEffect(() => {
     if (blockedList.length === 0) return;
     const ids = blockedList.map(b => b.blocked_id);
@@ -60,7 +59,6 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
             {[
               { id: 'profile' as const, icon: User, label: 'Perfil' },
               { id: 'app' as const, icon: Monitor, label: 'Sistema' },
-              { id: 'theme' as const, icon: Palette, label: 'Tema' },
               { id: 'blocked' as const, icon: Ban, label: 'Bloqueados' },
               { id: 'support' as const, icon: HelpCircle, label: 'Suporte' },
             ].map(tab => (
@@ -110,6 +108,7 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
               </div>
             ) : activeTab === 'app' ? (
               <div className="space-y-6 max-w-2xl">
+                {/* Dark Mode Toggle */}
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8">
                   <h2 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2"><Monitor className="w-5 h-5 text-red-500" /> Interface & Sistema</h2>
                   <div className="space-y-6">
@@ -130,6 +129,51 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
                     </div>
                   </div>
                 </div>
+
+                {/* Theme Selector inside System */}
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8">
+                  {isAdmin ? <ThemeEditor /> : <ThemeSelector userId={userId} />}
+                </div>
+
+                {/* PWA Install Guide */}
+                <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8">
+                  <h2 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2"><Smartphone className="w-5 h-5 text-red-500" /> Instalar App</h2>
+                  <div className="space-y-4">
+                    <div className="bg-black/20 border border-white/5 rounded-xl p-4">
+                      <h3 className="text-white font-bold text-sm mb-2 flex items-center gap-2"><Download className="w-4 h-4 text-emerald-400" /> Como instalar no celular (PWA)</h3>
+                      <div className="space-y-2 text-zinc-400 text-xs">
+                        <p><strong className="text-white">iPhone/iPad:</strong></p>
+                        <ol className="list-decimal list-inside space-y-1 ml-2">
+                          <li>Abra o FocusLab no Safari</li>
+                          <li>Toque no botão de compartilhar (ícone ↑)</li>
+                          <li>Role e toque em "Adicionar à Tela de Início"</li>
+                          <li>Toque em "Adicionar"</li>
+                        </ol>
+                        <p className="mt-2"><strong className="text-white">Android:</strong></p>
+                        <ol className="list-decimal list-inside space-y-1 ml-2">
+                          <li>Abra o FocusLab no Chrome</li>
+                          <li>Toque nos 3 pontos (⋮) no canto superior</li>
+                          <li>Toque em "Adicionar à tela inicial"</li>
+                          <li>Confirme tocando em "Adicionar"</li>
+                        </ol>
+                      </div>
+                    </div>
+                    <div className="bg-black/20 border border-white/5 rounded-xl p-4 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-white font-bold text-sm mb-1">Baixar .APK (Android)</h3>
+                        <p className="text-zinc-500 text-xs">Versão nativa para Android</p>
+                      </div>
+                      <div className="px-4 py-2 bg-zinc-800 text-zinc-500 rounded-xl text-xs font-bold">Em breve</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Admin Verified Badges Manager */}
+                {isAdmin && (
+                  <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8">
+                    <VerifiedBadgesManager />
+                  </div>
+                )}
               </div>
             ) : activeTab === 'support' ? (
               <div className="space-y-6 max-w-2xl">
@@ -162,8 +206,6 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
                   </div>
                 </div>
               </div>
-            ) : activeTab === 'theme' ? (
-              isAdmin ? <ThemeEditor /> : <ThemeSelector />
             ) : activeTab === 'blocked' ? (
               <div className="space-y-6 max-w-2xl">
                 <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl sm:rounded-3xl p-5 sm:p-8">
@@ -194,6 +236,50 @@ export function SettingsView({ userId, darkMode, setDarkMode, blockedIds: extern
             ) : null}
           </motion.div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Admin Verified Badges Manager ----
+function VerifiedBadgesManager() {
+  const { badges, addBadge, removeBadge } = useVerifiedBadges();
+  const [newUsername, setNewUsername] = useState('');
+  const [newType, setNewType] = useState<'partner' | 'creator'>('partner');
+
+  const handleAdd = () => {
+    const clean = newUsername.replace('@', '').trim();
+    if (!clean) { toast.error('Digite o @username'); return; }
+    addBadge(clean, newType);
+    setNewUsername('');
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg sm:text-xl font-bold text-white mb-4 flex items-center gap-2"><Shield className="w-5 h-5 text-red-500" /> Verificados</h2>
+      <p className="text-zinc-500 text-xs mb-4">Gerencie selos de verificação para influencers e criadores.</p>
+      
+      <div className="flex gap-2 mb-4">
+        <input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="@username" className="flex-1 bg-black/40 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-red-600" />
+        <select value={newType} onChange={e => setNewType(e.target.value as any)} className="bg-black/40 border border-zinc-800 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none">
+          <option value="partner">Parceiro</option>
+          <option value="creator">Criador Focus</option>
+        </select>
+        <button onClick={handleAdd} className="px-4 py-2.5 bg-red-900 hover:bg-red-800 text-white rounded-xl font-bold text-sm"><Plus className="w-4 h-4" /></button>
+      </div>
+
+      <div className="space-y-2">
+        {badges.map(b => (
+          <div key={b.id} className="flex items-center gap-3 p-3 bg-black/20 border border-white/5 rounded-xl">
+            <CheckCircle className={`w-4 h-4 shrink-0 ${b.badge_type === 'creator' ? 'text-red-500' : 'text-blue-400'}`} />
+            <span className="text-white text-sm font-medium">@{b.username}</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${b.badge_type === 'creator' ? 'bg-red-900/30 text-red-400' : 'bg-blue-900/30 text-blue-400'}`}>
+              {b.badge_type === 'creator' ? 'Criador Focus' : 'Parceiro'}
+            </span>
+            <button onClick={() => removeBadge(b.id)} className="ml-auto p-1 text-zinc-600 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+          </div>
+        ))}
+        {badges.length === 0 && <p className="text-zinc-600 text-xs">Nenhum verificado cadastrado.</p>}
       </div>
     </div>
   );
