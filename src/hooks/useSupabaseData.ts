@@ -37,7 +37,6 @@ export function useRedTasks(userId: string | undefined) {
   const toggleTask = useCallback(async (id: string) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
-    // Optimistic update
     setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed, completed_at: !t.completed ? new Date().toISOString() : null } : t));
     const { error } = await supabase.from('red_tasks').update({ completed: !task.completed, completed_at: !task.completed ? new Date().toISOString() : null }).eq('id', id);
     if (error) { toast.error('Erro ao atualizar tarefa'); await fetchTasks(); }
@@ -114,7 +113,6 @@ export function useGeneralTasks(userId: string | undefined) {
   }, [userId]);
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
-  // Check time window: visible 04:00-23:00
   const isInWindow = useCallback(() => {
     const hour = new Date().getHours();
     return hour >= 4 && hour < 23;
@@ -170,7 +168,6 @@ export function useChallengeProgress(userId: string | undefined) {
   }, [userId]);
   useEffect(() => { fetchProgress(); }, [fetchProgress]);
 
-  // Update days_completed based on actual elapsed days (excluding paused time)
   const getDaysElapsed = useCallback((item: any) => {
     if (!item) return 0;
     const start = new Date(item.started_at).getTime();
@@ -346,6 +343,92 @@ export function useLibraryContent(categoryId?: string) {
   return { content, loading, addContent, removeContent };
 }
 
+// ---- Library Partners ----
+export function useLibraryPartners() {
+  const [partners, setPartners] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPartners = useCallback(async () => {
+    const { data, error } = await supabase.from('library_partners').select('*').order('created_at', { ascending: false });
+    if (error) console.error(error);
+    else setPartners(data || []);
+    setLoading(false);
+  }, []);
+  useEffect(() => { fetchPartners(); }, [fetchPartners]);
+
+  const addPartner = useCallback(async (item: { title: string; description?: string; content_url?: string; partner_name?: string; price?: string; image_url?: string }) => {
+    const { error } = await supabase.from('library_partners').insert(item);
+    if (error) toast.error('Erro ao adicionar parceiro');
+    else { toast.success('Parceiro adicionado!'); await fetchPartners(); }
+  }, [fetchPartners]);
+
+  const removePartner = useCallback(async (id: string) => {
+    const { error } = await supabase.from('library_partners').delete().eq('id', id);
+    if (error) toast.error('Erro ao remover');
+    else { toast.success('Removido'); await fetchPartners(); }
+  }, [fetchPartners]);
+
+  return { partners, loading, addPartner, removePartner };
+}
+
+// ---- Verified Badges ----
+export function useVerifiedBadges() {
+  const [badges, setBadges] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchBadges = useCallback(async () => {
+    const { data, error } = await supabase.from('verified_badges').select('*').order('created_at', { ascending: false });
+    if (error) console.error(error);
+    else setBadges(data || []);
+    setLoading(false);
+  }, []);
+  useEffect(() => { fetchBadges(); }, [fetchBadges]);
+
+  const addBadge = useCallback(async (username: string, badgeType: string) => {
+    const { error } = await supabase.from('verified_badges').insert({ username, badge_type: badgeType });
+    if (error) toast.error('Erro ao adicionar verificado');
+    else { toast.success('Verificado adicionado!'); await fetchBadges(); }
+  }, [fetchBadges]);
+
+  const removeBadge = useCallback(async (id: string) => {
+    const { error } = await supabase.from('verified_badges').delete().eq('id', id);
+    if (error) toast.error('Erro ao remover');
+    else { toast.success('Verificado removido'); await fetchBadges(); }
+  }, [fetchBadges]);
+
+  const getBadgeForUsername = useCallback((username: string) => {
+    return badges.find(b => b.username === username);
+  }, [badges]);
+
+  return { badges, loading, addBadge, removeBadge, getBadgeForUsername };
+}
+
+// ---- User Theme Preference ----
+export function useUserThemePreference(userId: string | undefined) {
+  const [themeId, setThemeId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPref = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase.from('user_theme_preferences').select('theme_id').eq('user_id', userId).maybeSingle();
+    setThemeId(data?.theme_id || null);
+    setLoading(false);
+  }, [userId]);
+  useEffect(() => { fetchPref(); }, [fetchPref]);
+
+  const setPreference = useCallback(async (newThemeId: string) => {
+    if (!userId) return;
+    const { error } = await supabase.from('user_theme_preferences').upsert(
+      { user_id: userId, theme_id: newThemeId },
+      { onConflict: 'user_id' }
+    );
+    if (error) toast.error('Erro ao salvar preferência');
+    else { setThemeId(newThemeId); toast.success('Tema aplicado!'); }
+  }, [userId]);
+
+  return { themeId, loading, setPreference };
+}
+
 // ---- Coworking Rooms ----
 export function useCoworkingRooms(userId: string | undefined) {
   const [rooms, setRooms] = useState<any[]>([]);
@@ -392,13 +475,17 @@ export function useCoworkingMessages(roomId: string | null) {
     fetchMessages();
 
     const channel = supabase.channel(`room-${roomId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'coworking_messages', filter: `room_id=eq.${roomId}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coworking_messages', filter: `room_id=eq.${roomId}` },
         (payload) => { 
-          setMessages(prev => {
-            if (prev.some(m => m.id === payload.new.id)) return prev;
-            const filtered = prev.filter(m => !m._optimistic || m.content !== (payload.new as any).content || m.user_id !== (payload.new as any).user_id);
-            return [...filtered, payload.new];
-          });
+          if (payload.eventType === 'DELETE') {
+            setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
+          } else if (payload.eventType === 'INSERT') {
+            setMessages(prev => {
+              if (prev.some(m => m.id === payload.new.id)) return prev;
+              const filtered = prev.filter(m => !m._optimistic || m.content !== (payload.new as any).content || m.user_id !== (payload.new as any).user_id);
+              return [...filtered, payload.new];
+            });
+          }
         })
       .subscribe();
 
@@ -415,7 +502,13 @@ export function useCoworkingMessages(roomId: string | null) {
     if (error) { toast.error('Erro ao enviar mensagem'); setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id)); }
   }, [roomId]);
 
-  return { messages, loading, sendMessage };
+  const deleteMessage = useCallback(async (msgId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    const { error } = await supabase.from('coworking_messages').delete().eq('id', msgId);
+    if (error) { toast.error('Erro ao apagar mensagem'); }
+  }, []);
+
+  return { messages, loading, sendMessage, deleteMessage };
 }
 
 // ---- Fetch any profile by userId ----
@@ -429,11 +522,10 @@ export function usePublicProfile(userId: string | undefined) {
   return profile;
 }
 
-// ---- Check username availability (uses security definer function) ----
+// ---- Check username availability ----
 export async function checkUsernameAvailable(username: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('check_username_available', { uname: username });
   if (error) {
-    // Fallback to direct query if function doesn't exist
     const { data: profileData } = await supabase.from('profiles').select('id').eq('username', username).maybeSingle();
     return !profileData;
   }
@@ -453,7 +545,6 @@ export function useDailyStreaks(userId: string | undefined) {
 
   const fetchWeeklyData = useCallback(async () => {
     if (!userId) return;
-    // Get start of current week (Monday)
     const now = new Date();
     const dayOfWeek = now.getDay();
     const monday = new Date(now);
@@ -492,6 +583,7 @@ export function useDailyStreaks(userId: string | undefined) {
 export function useFriendships(userId: string | undefined) {
   const [friends, setFriends] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [sentRequests, setSentRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchFriendships = useCallback(async () => {
@@ -500,8 +592,10 @@ export function useFriendships(userId: string | undefined) {
     if (error) { console.error(error); setLoading(false); return; }
     const accepted = (data || []).filter(f => f.status === 'accepted');
     const pending = (data || []).filter(f => f.status === 'pending' && f.addressee_id === userId);
+    const sent = (data || []).filter(f => f.status === 'pending' && f.requester_id === userId);
     setFriends(accepted);
     setPendingRequests(pending);
+    setSentRequests(sent);
     setLoading(false);
   }, [userId]);
 
@@ -539,7 +633,7 @@ export function useFriendships(userId: string | undefined) {
     return friendship.requester_id === userId ? friendship.addressee_id : friendship.requester_id;
   }, [userId]);
 
-  return { friends, pendingRequests, loading, sendRequest, acceptRequest, declineRequest, removeFriend, getFriendUserId };
+  return { friends, pendingRequests, sentRequests, loading, sendRequest, acceptRequest, declineRequest, removeFriend, getFriendUserId };
 }
 
 // ---- Private Messages (FriLabs) ----

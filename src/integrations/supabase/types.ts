@@ -421,6 +421,42 @@ export type Database = {
         }
         Relationships: []
       }
+      library_partners: {
+        Row: {
+          content_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          partner_name: string | null
+          price: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          partner_name?: string | null
+          price?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          partner_name?: string | null
+          price?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       objectives: {
         Row: {
           created_at: string
@@ -646,6 +682,62 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_theme_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          theme_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          theme_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          theme_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_theme_preferences_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "global_themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verified_badges: {
+        Row: {
+          badge_type: string
+          created_at: string
+          id: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          badge_type?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          badge_type?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string
         }
         Relationships: []
       }
